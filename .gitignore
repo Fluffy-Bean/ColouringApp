@@ -1,0 +1,6 @@
+# Remove Editor Files
+.idea
+.vscode
+
+# Remove Enviroment Variables
+.env
