@@ -3,6 +3,7 @@ package scenes
 import (
 	"ColouringApp/application"
 	"fmt"
+
 	gui "github.com/gen2brain/raylib-go/raygui"
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )

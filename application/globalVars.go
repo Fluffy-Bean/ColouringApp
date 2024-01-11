@@ -8,11 +8,17 @@ const (
 )
 
 const (
-	SceneTitle = iota
+	ScenePlayerData = iota
+	SceneTitle
 	SceneOptions
 	SceneGame
 )
 
-var CurrentScene = SceneTitle
+const (
+	DirAssets     = "./assets/"
+	DirPlayerData = "./playerData/"
+)
+
+var CurrentScene = ScenePlayerData
 
 var ShouldQuit = false

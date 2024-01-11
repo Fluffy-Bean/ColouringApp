@@ -16,6 +16,8 @@ func main() {
 	// MAIN LOOP
 	for !application.ShouldQuit {
 		switch application.CurrentScene {
+		case application.ScenePlayerData:
+			scenes.PlayerData()
 		case application.SceneTitle:
 			scenes.Title()
 		case application.SceneOptions:
