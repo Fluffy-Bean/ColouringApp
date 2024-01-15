@@ -3,8 +3,8 @@ module ColouringApp
 go 1.21.5
 
 require (
-	github.com/gen2brain/raylib-go/raygui v0.0.0-20231230150416-17ce08145200
-	github.com/gen2brain/raylib-go/raylib v0.0.0-20231230150416-17ce08145200
+	github.com/gen2brain/raylib-go/raygui v0.0.0-20240110102818-483e94e4d92e
+	github.com/gen2brain/raylib-go/raylib v0.0.0-20240110102818-483e94e4d92e
 )
 
 require (
