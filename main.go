@@ -8,12 +8,12 @@ import (
 )
 
 func main() {
-	//raylib.SetConfigFlags(raylib.FlagWindowResizable)
+	raylib.SetConfigFlags(raylib.FlagWindowResizable)
 
 	raylib.InitWindow(application.WindowWidth, application.WindowHeight, application.WindowTitle)
 	raylib.InitAudioDevice()
 
-	raylib.SetTargetFPS(application.WindowFPS)
+	//raylib.SetTargetFPS(application.WindowFPS)
 	//raylib.SetExitKey(0) // disable exit key
 
 	// MAIN LOOP

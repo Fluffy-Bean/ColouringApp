@@ -14,8 +14,8 @@ func Options() {
 		titleForwardPos float32 = 45
 
 		centerPos  float32 = 10
-		backPos    float32 = -application.WindowWidth + 10
-		forwardPos float32 = application.WindowWidth + 10
+		backPos            = float32(-application.WindowWidth + 10)
+		forwardPos         = float32(application.WindowWidth + 10)
 
 		rootPanel     = true
 		controlsPanel = false
@@ -68,7 +68,7 @@ func Options() {
 		raylib.EndScissorMode()
 
 		raylib.DrawLine(10, 40, 790, 40, raylib.White)
-		if gui.Button(raylib.NewRectangle(application.WindowWidth-110, 10, 100, 20), "Main Menu") {
+		if gui.Button(raylib.NewRectangle(float32(application.WindowWidth-110), 10, 100, 20), "Main Menu") {
 			application.CurrentScene = application.SceneTitle
 		}
 
