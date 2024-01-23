@@ -25,18 +25,15 @@ func Title() {
 		raylib.BeginDrawing()
 		raylib.ClearBackground(raylib.Black)
 
-		raylib.DrawText(titleText, 10, 10, 20, raylib.White)
-		raylib.DrawLine(10, 40, 790, 40, raylib.White)
-
-		if gui.Button(raylib.NewRectangle(10, 50, 100, 20), "Start") {
-			application.CurrentScene = application.SceneGame
-		}
-		if gui.Button(raylib.NewRectangle(10, 80, 100, 20), "Options") {
-			application.CurrentScene = application.SceneOptions
-		}
-		if gui.Button(raylib.NewRectangle(10, 110, 100, 20), "Quit") {
+		if gui.Button(raylib.NewRectangle(10, 10, 40, 40), gui.IconText(gui.ICON_CROSS, "")) {
 			application.ShouldQuit = true
 		}
+		raylib.DrawText(titleText, (application.WindowWidth-raylib.MeasureText(titleText, 20))/2, 20, 20, raylib.White)
+		if gui.Button(raylib.NewRectangle(application.WindowWidth-50, 10, 40, 40), gui.IconText(gui.ICON_GEAR, "")) {
+			application.CurrentScene = application.SceneOptions
+		}
+
+		//raylib.DrawLine(10, 60, 790, 60, raylib.White)
 
 		//// Map thing?
 		//raylib.DrawRectangleLines(120, 39, application.WindowWidth-130, application.WindowHeight-49, raylib.White)
@@ -44,6 +41,11 @@ func Title() {
 		//raylib.DrawTexture(mapImage, int32(-mapX), int32(-mapY), raylib.White)
 
 		raylib.EndScissorMode()
+
+		if gui.Button(raylib.NewRectangle((application.WindowWidth-100)/2, application.WindowHeight-70, 100, 40), "Start") {
+			application.CurrentScene = application.SceneGame
+		}
+
 		raylib.EndDrawing()
 	}
 

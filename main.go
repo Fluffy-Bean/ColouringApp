@@ -3,10 +3,13 @@ package main
 import (
 	"ColouringApp/application"
 	"ColouringApp/scenes"
+
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
 func main() {
+	//raylib.SetConfigFlags(raylib.FlagWindowResizable)
+
 	raylib.InitWindow(application.WindowWidth, application.WindowHeight, application.WindowTitle)
 	raylib.InitAudioDevice()
 
