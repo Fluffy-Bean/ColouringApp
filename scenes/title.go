@@ -12,8 +12,8 @@ func Title() {
 		titleText = application.WindowTitle
 		mapImage  = raylib.LoadTexture(application.DirAssets + "Map.png")
 
-		mapX = 0
-		mapY = 0
+		//mapX = 0
+		//mapY = 0
 	)
 
 	for !application.ShouldQuit {
@@ -38,22 +38,10 @@ func Title() {
 			application.ShouldQuit = true
 		}
 
-		// Map thing?
-		raylib.DrawRectangleLines(120, 39, application.WindowWidth-130, application.WindowHeight-49, raylib.White)
-		raylib.BeginScissorMode(121, 40, application.WindowWidth-132, application.WindowHeight-51)
-
-		mapX += 1
-		mapX = 0
-		mapY = 0
-		if mapX > 1920 {
-			mapX = 0
-		}
-
-		mapY += 1
-		if mapY > 1080 {
-			mapY = 0
-		}
-		raylib.DrawTexture(mapImage, int32(-mapX), int32(-mapY), raylib.White)
+		//// Map thing?
+		//raylib.DrawRectangleLines(120, 39, application.WindowWidth-130, application.WindowHeight-49, raylib.White)
+		//raylib.BeginScissorMode(121, 40, application.WindowWidth-132, application.WindowHeight-51)
+		//raylib.DrawTexture(mapImage, int32(-mapX), int32(-mapY), raylib.White)
 
 		raylib.EndScissorMode()
 		raylib.EndDrawing()

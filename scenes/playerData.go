@@ -2,8 +2,6 @@ package scenes
 
 import (
 	"ColouringApp/application"
-	"time"
-
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -22,8 +20,8 @@ func PlayerData() {
 
 		raylib.EndDrawing()
 
-		// Just a placeholder
-		time.Sleep(1 * time.Second)
+		//time.Sleep(1 * time.Second)
+
 		application.CurrentScene = application.SceneTitle
 	}
 }
