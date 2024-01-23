@@ -43,7 +43,7 @@ func Title() {
 		raylib.EndScissorMode()
 
 		if gui.Button(raylib.NewRectangle((application.WindowWidth-100)/2, application.WindowHeight-70, 100, 40), "Start") {
-			application.CurrentScene = application.SceneGame
+			application.CurrentScene = application.SceneDrawing
 		}
 
 		raylib.EndDrawing()

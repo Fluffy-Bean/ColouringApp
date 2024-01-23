@@ -14,7 +14,7 @@ func main() {
 	raylib.InitAudioDevice()
 
 	raylib.SetTargetFPS(application.WindowFPS)
-	raylib.SetExitKey(0) // disable exit key
+	//raylib.SetExitKey(0) // disable exit key
 
 	// MAIN LOOP
 	for !application.ShouldQuit {
@@ -25,8 +25,8 @@ func main() {
 			scenes.Title()
 		case application.SceneOptions:
 			scenes.Options()
-		case application.SceneGame:
-			scenes.Game()
+		case application.SceneDrawing:
+			scenes.Drawing()
 		default:
 			panic("Unknown scene")
 		}

@@ -9,7 +9,7 @@ const (
 	WindowHeight = 600
 
 	// WindowFPS Max FPS the game should run at, used to calucalte delta time
-	WindowFPS = 60
+	WindowFPS = 144
 )
 
 // Scene IDs used to determine which scene to run
@@ -18,20 +18,19 @@ const (
 	SceneTitle
 	SceneOptions
 	SceneGallery
-	SceneDraw
-	SceneGame
+	SceneDrawing
 )
 
 // Directories used to store assets
 const (
-	DirAssets     = "./assets/"
-	DirPlayerData = "./playerData/"
+	DirAssets   = "./assets/"
+	DirUserData = "./userData/"
 )
 
 var (
 	// ShouldQuit is used to determine if the game should quit
 	ShouldQuit = false
 
-	// CurrentScene is the scene that is currently running
+	// CurrentScene is the scene that is currently running, defaults to loading player data
 	CurrentScene = ScenePlayerData
 )
