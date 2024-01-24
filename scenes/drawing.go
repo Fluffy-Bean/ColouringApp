@@ -2,8 +2,14 @@ package scenes
 
 import (
 	"ColouringApp/application"
+	"fmt"
 	gui "github.com/gen2brain/raylib-go/raygui"
 	raylib "github.com/gen2brain/raylib-go/raylib"
+)
+
+const (
+	ModeDrawing = iota
+	ModeLine
 )
 
 type stroke struct {
@@ -14,16 +20,23 @@ type stroke struct {
 
 func Drawing() {
 	var (
-		canvasSize    = raylib.NewVector2(500, 430)
-		canvas        = raylib.LoadRenderTexture(int32(canvasSize.X), int32(canvasSize.Y))
+		canvasSize = raylib.NewVector2(500, 430)
+		canvas     = raylib.LoadRenderTexture(int32(canvasSize.X), int32(canvasSize.Y))
+
+		sidePanelWidth     float32 = 300
+		sidePanelRelativeX         = application.WindowWidth - int32(sidePanelWidth)
+
+		drawing = false
+		//drawingMode = ModeDrawing
+
 		currentStroke = stroke{}
 		strokes       = []stroke{currentStroke}
 		undoneStrokes = []stroke{}
 
-		brushSize float32 = 10
-
 		colourPickerVal            = raylib.Orange
 		colourPickerHeight float32 = 200
+
+		brushSize float32 = 10
 	)
 
 	refreshCanvas := func() {
@@ -46,63 +59,86 @@ func Drawing() {
 	refreshCanvas()
 
 	for !application.ShouldQuit {
-		application.ShouldQuit = raylib.WindowShouldClose()
-		if application.CurrentScene != application.SceneDrawing {
-			break
-		}
-		if raylib.IsWindowResized() {
-			application.WindowWidth = int32(raylib.GetScreenWidth())
-			application.WindowHeight = int32(raylib.GetScreenHeight())
+		// DEFAULT
+		{
+			application.ShouldQuit = raylib.WindowShouldClose()
+			if application.CurrentScene != application.SceneDrawing {
+				break
+			}
+			if raylib.IsWindowResized() {
+				application.WindowWidth = int32(raylib.GetScreenWidth())
+				application.WindowHeight = int32(raylib.GetScreenHeight())
+
+				sidePanelRelativeX = application.WindowWidth - int32(sidePanelWidth)
+			}
 		}
 
 		// INPUT
 		{
 			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) {
-				currentStroke = stroke{
-					Color: colourPickerVal,
-					Size:  brushSize,
+				drawing = false
+
+				if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvasSize.X, canvasSize.Y)) {
+					drawing = true
+					currentStroke = stroke{
+						Color: colourPickerVal,
+						Size:  brushSize,
+					}
 				}
 			}
-			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) {
-				// if mouse is further than 5 pixels from last point, add it
-				var safeZone float32 = 1
+			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && drawing {
+				var safeZone float32 = 5
+
 				if len(currentStroke.Points) <= 1 {
 					currentStroke.Points = append(currentStroke.Points, raylib.GetMousePosition())
 				} else if raylib.Vector2Distance(currentStroke.Points[len(currentStroke.Points)-1], raylib.GetMousePosition()) > safeZone {
 					currentStroke.Points = append(currentStroke.Points, raylib.GetMousePosition())
 				}
-				//currentStroke.Points = append(currentStroke.Points, raylib.GetMousePosition())
 			}
 			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && currentStroke.Points != nil {
+				drawing = false
+
 				strokes = append(strokes, currentStroke)
 				currentStroke = stroke{}
 				undoneStrokes = []stroke{}
+
 				refreshCanvas()
 			}
 
 			if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyDown(raylib.KeyLeftShift) && raylib.IsKeyPressed(raylib.KeyZ) {
-				if len(undoneStrokes) > 0 {
+				if len(undoneStrokes) > 1 {
 					strokes = append(strokes, undoneStrokes[len(undoneStrokes)-1])
 					undoneStrokes = undoneStrokes[:len(undoneStrokes)-1]
 				}
+
 				refreshCanvas()
 			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyZ) {
-				if len(strokes) > 0 {
+				if len(strokes) > 1 {
 					undoneStrokes = append(undoneStrokes, strokes[len(strokes)-1])
 					strokes = strokes[:len(strokes)-1]
 				}
+
 				refreshCanvas()
 			}
 		}
 
 		// UPDATE
+		{
+			if drawing {
+				gui.SetState(gui.STATE_DISABLED)
+			} else {
+				gui.SetState(gui.STATE_NORMAL)
+			}
+		}
 
 		// DRAW
 		raylib.BeginDrawing()
 		{
 			raylib.ClearBackground(raylib.White)
+			gui.Grid(raylib.NewRectangle(0, 0, float32(application.WindowWidth), float32(application.WindowHeight)), "", 30, 1, &raylib.Vector2{})
 
 			// Canvas stuff
+			raylib.DrawRectangle(20, 20, int32(canvasSize.X), int32(canvasSize.Y), raylib.Fade(raylib.Black, 0.3))
 			raylib.BeginScissorMode(10, 10, int32(canvasSize.X), int32(canvasSize.Y))
 			{
 				raylib.DrawTexturePro(canvas.Texture, raylib.NewRectangle(0, 0, float32(canvas.Texture.Width), float32(-canvas.Texture.Height)), raylib.NewRectangle(10, 10, canvasSize.X, canvasSize.Y), raylib.Vector2{}, 0, raylib.White)
@@ -116,17 +152,32 @@ func Drawing() {
 			raylib.DrawRectangleLines(10, 10, int32(canvasSize.X), int32(canvasSize.Y), raylib.Gray)
 
 			// UI stuff
-			if gui.Button(raylib.NewRectangle(float32(30+int32(canvasSize.X)), 10, 25, 25), gui.IconText(gui.ICON_CROSS, "")) {
-				application.CurrentScene = application.SceneTitle
-			}
-			if gui.Button(raylib.NewRectangle(float32(65+int32(canvasSize.X)), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
-			}
+			raylib.BeginScissorMode(sidePanelRelativeX, 0, int32(sidePanelWidth), application.WindowHeight)
+			{
+				raylib.DrawRectangle(sidePanelRelativeX, 0, int32(sidePanelWidth), application.WindowHeight, raylib.Fade(raylib.White, 0.7))
 
-			colourPickerVal = gui.ColorPicker(raylib.NewRectangle(float32(30+int32(canvasSize.X)), 45, float32(application.WindowWidth)-float32(65+int32(canvasSize.X)), colourPickerHeight), "Color", colourPickerVal)
-			brushSize = gui.Slider(raylib.NewRectangle(float32(90+int32(canvasSize.X)), 65+colourPickerHeight, 200, 20), "Brush Size", "", brushSize, 1, 100)
+				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+10), 10, 25, 25), gui.IconText(gui.ICON_CROSS, "")) {
+					application.CurrentScene = application.SceneTitle
+				}
+				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
+				}
 
-			raylib.DrawLine(20+int32(canvasSize.X), 10, 20+int32(canvasSize.X), 10+int32(canvasSize.Y), raylib.Gray)
-			raylib.DrawLine(30+int32(canvasSize.X), int32(55+colourPickerHeight), application.WindowWidth-10, int32(55+colourPickerHeight), raylib.Gray)
+				colourPickerVal = gui.ColorPicker(raylib.NewRectangle(float32(sidePanelRelativeX+10), 45, sidePanelWidth-40, colourPickerHeight), "Color", colourPickerVal)
+				brushSize = gui.Slider(raylib.NewRectangle(float32(sidePanelRelativeX+80), 65+colourPickerHeight, 200, 20), "Brush Size", "", brushSize, 1, 100)
+			}
+			raylib.EndScissorMode()
+			raylib.DrawRectangleLines(sidePanelRelativeX, 0, int32(sidePanelWidth), application.WindowHeight, raylib.Gray)
+
+			// Info
+			{
+				var text string
+
+				text = fmt.Sprintf("Strokes: %d | Stroke Points: %d", len(strokes), len(currentStroke.Points))
+				gui.StatusBar(raylib.NewRectangle(0, float32(application.WindowHeight-20), 200, 20), text)
+
+				text = fmt.Sprintf("Canvas Size: %dx%d", int32(canvasSize.X), int32(canvasSize.Y))
+				gui.StatusBar(raylib.NewRectangle(199, float32(application.WindowHeight-20), 200, 20), text)
+			}
 		}
 		raylib.EndDrawing()
 	}
