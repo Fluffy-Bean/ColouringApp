@@ -12,11 +12,19 @@ const (
 	ModeLine
 )
 
-type stroke struct {
-	Color  raylib.Color
-	Size   float32
-	Points []raylib.Vector2
+type freeHand struct {
+	Color   raylib.Color
+	Size    float32
+	Opacity float32
+	Points  []raylib.Vector2
 }
+
+//type line struct {
+//	Color raylib.Color
+//	Size  float32
+//	Start raylib.Vector2
+//	End   raylib.Vector2
+//}
 
 func Drawing() {
 	var (
@@ -24,6 +32,7 @@ func Drawing() {
 		//cameraMoveOffset = raylib.NewVector2(10, 10)
 
 		canvasSize    = raylib.NewVector2(500, 430)
+		canvasScale   = float32(1)
 		canvas        = raylib.LoadRenderTexture(int32(canvasSize.X), int32(canvasSize.Y))
 		canvasRefresh = true
 
@@ -33,18 +42,22 @@ func Drawing() {
 		drawing = false
 		//drawingMode = ModeDrawing
 
-		currentStroke = stroke{}
-		strokes       = []stroke{currentStroke}
-		undoneStrokes = []stroke{}
+		currentStroke = freeHand{}
+		strokes       = []freeHand{currentStroke}
+		undoneStrokes = []freeHand{}
 
 		colourPickerVal    = raylib.Orange
 		colourPickerHeight = float32(200)
 
-		brushSize = float32(10)
+		brushSize    = float32(10)
+		brushOpacity = float32(1)
 
 		fileName        = "NewProject"
 		fileNameEditing = false
 	)
+
+	application.WindowWidth = int32(raylib.GetScreenWidth())
+	application.WindowHeight = int32(raylib.GetScreenHeight())
 
 	refreshCanvas := func() {
 		raylib.BeginTextureMode(canvas)
@@ -54,34 +67,32 @@ func Drawing() {
 			for j := 1; j < len(strokes[i].Points); j++ {
 				startPos := raylib.Vector2Subtract(strokes[i].Points[j-1], raylib.NewVector2(10, 10))
 				endPos := raylib.Vector2Subtract(strokes[i].Points[j], raylib.NewVector2(10, 10))
-				raylib.DrawLineEx(startPos, endPos, strokes[i].Size, strokes[i].Color)
-				raylib.DrawCircle(int32(endPos.X), int32(endPos.Y), strokes[i].Size/2, strokes[i].Color)
+				raylib.DrawLineEx(startPos, endPos, strokes[i].Size, raylib.Fade(strokes[i].Color, strokes[i].Opacity))
+				raylib.DrawCircle(int32(endPos.X), int32(endPos.Y), strokes[i].Size/2, raylib.Fade(strokes[i].Color, strokes[i].Opacity))
 			}
 		}
 
 		raylib.EndTextureMode()
 	}
 
-	undoStroke := func() {
-		fmt.Println("Undo")
-
+	redoStroke := func() {
 		if len(undoneStrokes) > 0 {
 			strokes = append(strokes, undoneStrokes[len(undoneStrokes)-1])
 			undoneStrokes = undoneStrokes[:len(undoneStrokes)-1]
+
+			application.AddToast("Redo")
+			canvasRefresh = true
 		}
-
-		canvasRefresh = true
 	}
-	redoStroke := func() {
-		fmt.Println("Redo")
-
+	undoStroke := func() {
 		// 1 because I dont know why
 		if len(strokes) > 1 {
 			undoneStrokes = append(undoneStrokes, strokes[len(strokes)-1])
 			strokes = strokes[:len(strokes)-1]
-		}
 
-		canvasRefresh = true
+			canvasRefresh = true
+			application.AddToast("Undo")
+		}
 	}
 
 	saveImage := func() {
@@ -116,9 +127,9 @@ func Drawing() {
 
 		// INPUT
 		{
-			//if raylib.GetMouseWheelMove() != 0 {
-			//	camera.Zoom += float32(raylib.GetMouseWheelMove()) * 0.05
-			//}
+			if raylib.GetMouseWheelMove() != 0 && !drawing {
+				canvasScale += float32(raylib.GetMouseWheelMove()) * 0.05
+			}
 			//if raylib.IsMouseButtonPressed(raylib.MouseMiddleButton) {
 			//	cameraMoveOffset = raylib.Vector2Subtract(camera.Target, raylib.GetMousePosition())
 			//}
@@ -135,9 +146,10 @@ func Drawing() {
 					drawing = false
 				} else if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvasSize.X, canvasSize.Y)) {
 					drawing = true
-					currentStroke = stroke{
-						Color: colourPickerVal,
-						Size:  brushSize,
+					currentStroke = freeHand{
+						Color:   colourPickerVal,
+						Size:    brushSize,
+						Opacity: 1,
 					}
 				}
 			}
@@ -151,19 +163,18 @@ func Drawing() {
 				}
 			}
 			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && currentStroke.Points != nil {
-				drawing = false
-
 				strokes = append(strokes, currentStroke)
-				currentStroke = stroke{}
-				undoneStrokes = []stroke{}
+				currentStroke = freeHand{}
+				undoneStrokes = []freeHand{}
 
+				drawing = false
 				canvasRefresh = true
 			}
 
 			if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyDown(raylib.KeyLeftShift) && raylib.IsKeyPressed(raylib.KeyZ) {
-				undoStroke()
-			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyZ) {
 				redoStroke()
+			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyZ) {
+				undoStroke()
 			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyS) {
 				saveImage()
 			}
@@ -197,20 +208,20 @@ func Drawing() {
 				raylib.DrawRectangle(20, 20, int32(canvasSize.X), int32(canvasSize.Y), raylib.Fade(raylib.Black, 0.3))
 				raylib.DrawTexturePro(canvas.Texture, raylib.NewRectangle(0, 0, float32(canvas.Texture.Width), float32(-canvas.Texture.Height)), raylib.NewRectangle(10, 10, canvasSize.X, canvasSize.Y), raylib.Vector2{}, 0, raylib.White)
 
+				//raylib.BeginScissorMode(10, 10, int32(canvasSize.X), int32(canvasSize.Y))
+				for i := 1; i < len(currentStroke.Points); i++ {
+					raylib.DrawLineEx(currentStroke.Points[i-1], currentStroke.Points[i], currentStroke.Size, raylib.Fade(currentStroke.Color, currentStroke.Opacity))
+					raylib.DrawCircle(int32(currentStroke.Points[i].X), int32(currentStroke.Points[i].Y), currentStroke.Size/2, raylib.Fade(currentStroke.Color, currentStroke.Opacity))
+				}
+				//raylib.EndScissorMode()
+
 				if drawing {
 					raylib.DrawRectangleLines(10, 10, int32(canvasSize.X), int32(canvasSize.Y), raylib.DarkGray)
+					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
 				} else {
 					raylib.DrawRectangleLines(10, 10, int32(canvasSize.X), int32(canvasSize.Y), raylib.Gray)
+					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
 				}
-
-				raylib.BeginScissorMode(10, 10, int32(canvasSize.X), int32(canvasSize.Y))
-				for i := 1; i < len(currentStroke.Points); i++ {
-					raylib.DrawLineEx(currentStroke.Points[i-1], currentStroke.Points[i], currentStroke.Size, currentStroke.Color)
-					raylib.DrawCircle(int32(currentStroke.Points[i].X), int32(currentStroke.Points[i].Y), currentStroke.Size/2, currentStroke.Color)
-				}
-				raylib.EndScissorMode()
-
-				raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
 			}
 			raylib.EndMode2D()
 
@@ -226,21 +237,23 @@ func Drawing() {
 					saveImage()
 				}
 
-				// Stupid arrows are inverted
 				if gui.Button(raylib.NewRectangle(float32(application.WindowWidth-70), 10, 25, 25), gui.IconText(gui.ICON_UNDO, "")) {
-					redoStroke()
-				}
-				if gui.Button(raylib.NewRectangle(float32(application.WindowWidth-35), 10, 25, 25), gui.IconText(gui.ICON_REDO, "")) {
 					undoStroke()
 				}
+				if gui.Button(raylib.NewRectangle(float32(application.WindowWidth-35), 10, 25, 25), gui.IconText(gui.ICON_REDO, "")) {
+					redoStroke()
+				}
 
-				colourPickerVal = gui.ColorPicker(raylib.NewRectangle(float32(sidePanelRelativeX+10), 45, sidePanelWidth-40, colourPickerHeight), "Color", colourPickerVal)
+				colourPickerVal = gui.ColorPicker(raylib.NewRectangle(float32(sidePanelRelativeX+10), 45, sidePanelWidth-45, colourPickerHeight), "Color", colourPickerVal)
 
-				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 55+colourPickerHeight, 200, 20), "Brush Size")
-				brushSize = gui.Slider(raylib.NewRectangle(float32(sidePanelRelativeX+78), 55+colourPickerHeight, 215, 20), "", "", brushSize, 1, 100)
+				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 55+colourPickerHeight, 60, 20), "Brush Size")
+				brushSize = gui.Slider(raylib.NewRectangle(float32(sidePanelRelativeX+80), 55+colourPickerHeight, sidePanelWidth-90, 20), "", "", brushSize, 1, 100)
 
-				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 85+colourPickerHeight, 200, 20), "File Name")
-				if gui.TextBox(raylib.NewRectangle(float32(sidePanelRelativeX+78), 85+colourPickerHeight, 215, 20), &fileName, 40, fileNameEditing) {
+				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 85+colourPickerHeight, 60, 20), "Brush Opacity")
+				brushOpacity = gui.Slider(raylib.NewRectangle(float32(sidePanelRelativeX+80), 85+colourPickerHeight, sidePanelWidth-90, 20), "", "", brushOpacity, 0, 1)
+
+				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 115+colourPickerHeight, 60, 20), "File Name")
+				if gui.TextBox(raylib.NewRectangle(float32(sidePanelRelativeX+80), 115+colourPickerHeight, sidePanelWidth-90, 20), &fileName, 40, fileNameEditing) {
 					fileNameEditing = !fileNameEditing
 				}
 			}
@@ -251,10 +264,10 @@ func Drawing() {
 			{
 				var text string
 
-				text = fmt.Sprintf("Strokes: %d | Stroke Points: %d", len(strokes), len(currentStroke.Points))
+				text = fmt.Sprintf("Strokes: %d | Points: %d", len(strokes), len(currentStroke.Points))
 				gui.StatusBar(raylib.NewRectangle(0, float32(application.WindowHeight-20), 200, 20), text)
 
-				text = fmt.Sprintf("Canvas Size: %dx%d", int32(canvasSize.X), int32(canvasSize.Y))
+				text = fmt.Sprintf("Canvas Size: %dx%d | Scale: %v", int32(canvasSize.X), int32(canvasSize.Y), canvasScale)
 				gui.StatusBar(raylib.NewRectangle(199, float32(application.WindowHeight-20), 200, 20), text)
 			}
 

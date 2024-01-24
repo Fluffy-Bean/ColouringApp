@@ -21,6 +21,8 @@ type Toast struct {
 func AddToast(text string) {
 	toast := Toast{Text: text, Age: time.Now()}
 	toasts = append(toasts, toast)
+
+	fmt.Printf("Added Toast: '%s'\n", text)
 }
 
 func UpdateToasts() {
