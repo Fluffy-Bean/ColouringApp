@@ -58,7 +58,7 @@ func main() {
 	var (
 		camera = raylib.NewCamera2D(raylib.NewVector2(0, 0), raylib.NewVector2(0, 0), 0, 1)
 
-		canvas        = NewCanvas("NewProject", raylib.NewVector2(600, 530), raylib.NewVector2(15, 15))
+		canvas        = NewCanvas("NewProject", raylib.NewVector2(700, 530), raylib.NewVector2(15, 15))
 		currentStroke = penTool{}
 
 		sidePanelWidth     = float32(350)
@@ -210,6 +210,7 @@ func main() {
 				if choice == 0 || choice == 1 {
 					state = StateNormal
 				}
+			default:
 			}
 
 			DrawToasts()

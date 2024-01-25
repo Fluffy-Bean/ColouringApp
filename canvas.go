@@ -20,6 +20,8 @@ type Canvas struct {
 
 func (c *Canvas) Update() {
 	if c.Refresh {
+		c.Target = raylib.LoadRenderTexture(int32(c.Size.X), int32(c.Size.Y))
+
 		raylib.BeginTextureMode(c.Target)
 		raylib.ClearBackground(raylib.White)
 		for _, mark := range c.Strokes {
