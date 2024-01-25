@@ -2,10 +2,43 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	gui "github.com/gen2brain/raylib-go/raygui"
 	raylib "github.com/gen2brain/raylib-go/raylib"
-	"os"
 )
+
+const (
+	WindowTitle     = "Colouring App"
+	WindowMinWidth  = int32(800)
+	WindowMinHeight = int32(600)
+	WindowFPS       = int32(144)
+)
+
+var (
+	WindowWidth  = WindowMinWidth
+	WindowHeight = WindowMinHeight
+)
+
+const (
+	DirAssets   = "./assets/"
+	DirUserData = "./userData/"
+)
+
+const (
+	StateNone = iota
+	StateDrawing
+	StateFileMenu
+)
+
+func checkDirs() {
+	if _, err := os.Stat(DirUserData); os.IsNotExist(err) {
+		err := os.Mkdir(DirUserData, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
 
 func main() {
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
@@ -13,6 +46,8 @@ func main() {
 	raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
+	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
+
 	raylib.InitAudioDevice()
 
 	raylib.SetTargetFPS(WindowFPS)
@@ -20,115 +55,41 @@ func main() {
 
 	var (
 		camera = raylib.NewCamera2D(raylib.NewVector2(0, 0), raylib.NewVector2(0, 0), 0, 1)
-		//cameraMoveOffset = raylib.NewVector2(10, 10)
 
-		canvasSize    = raylib.NewVector2(500, 430)
-		canvasScale   = float32(1)
-		canvas        = raylib.LoadRenderTexture(int32(canvasSize.X), int32(canvasSize.Y))
-		canvasRefresh = true
+		canvas        = NewCanvas("NewProject", raylib.NewVector2(600, 530), raylib.NewVector2(15, 15))
+		currentStroke = penTool{}
+		drawing       = false
 
 		sidePanelWidth     = float32(350)
 		sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
 
-		drawing = false
-		//drawingMode = ModeDrawing
-
-		currentStroke = penTool{}
-		strokes       = []penTool{currentStroke}
-		undoneStrokes = []penTool{}
-
 		colourPickerVal    = raylib.Orange
-		colourPickerHeight = float32(200)
+		colourPickerHeight = float32(250)
 
-		brushSize    = float32(10)
-		brushOpacity = float32(1)
+		brushSize = float32(10)
 
-		fileName        = "NewProject"
 		fileNameEditing = false
 
 		menu = StateNone
+
+		appShouldQuit = false
 	)
 
 	// check if userData exists
-	if _, err := os.Stat(DirUserData); os.IsNotExist(err) {
-		err := os.Mkdir(DirUserData, 0755)
-		if err != nil {
-			panic(err)
-		}
-	}
+	checkDirs()
 
-	WindowWidth = int32(raylib.GetScreenWidth())
-	WindowHeight = int32(raylib.GetScreenHeight())
-
-	refreshCanvas := func() {
-		raylib.BeginTextureMode(canvas)
-		raylib.ClearBackground(raylib.White)
-
-		for i := 1; i < len(strokes); i++ {
-			strokes[i].Draw(raylib.NewVector2(-10, -10))
-		}
-
-		raylib.EndTextureMode()
-	}
-
-	redoStroke := func() {
-		if len(undoneStrokes) > 0 {
-			strokes = append(strokes, undoneStrokes[len(undoneStrokes)-1])
-			undoneStrokes = undoneStrokes[:len(undoneStrokes)-1]
-
-			AddToast("Redo")
-			canvasRefresh = true
-		}
-	}
-	undoStroke := func() {
-		// 1 because I dont know why
-		if len(strokes) > 1 {
-			undoneStrokes = append(undoneStrokes, strokes[len(strokes)-1])
-			strokes = strokes[:len(strokes)-1]
-
-			canvasRefresh = true
-			AddToast("Undo")
-		}
-	}
-
-	saveImage := func() {
-		if fileName == "" {
-			AddToast("Please enter a file name")
-		} else {
-			image := raylib.LoadImageFromTexture(canvas.Texture)
-
-			raylib.ImageRotate(image, 180)
-			raylib.ImageFlipHorizontal(image)
-
-			raylib.ExportImage(*image, DirUserData+fileName+".png")
-
-			AddToast("Drawing saved at " + DirUserData + fileName + ".png")
-		}
-	}
-
-	for !ShouldQuit {
+	for !appShouldQuit {
 		// LOOP
-		ShouldQuit = raylib.WindowShouldClose()
+		appShouldQuit = raylib.WindowShouldClose()
 
 		if raylib.IsWindowResized() {
 			WindowWidth = int32(raylib.GetScreenWidth())
 			WindowHeight = int32(raylib.GetScreenHeight())
-
 			sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
 		}
 
 		// INPUT
 		{
-			if raylib.GetMouseWheelMove() != 0 && !drawing {
-				canvasScale += float32(raylib.GetMouseWheelMove()) * 0.05
-			}
-			//if raylib.IsMouseButtonPressed(raylib.MouseMiddleButton) {
-			//	cameraMoveOffset = raylib.Vector2Subtract(camera.Target, raylib.GetMousePosition())
-			//}
-			//if raylib.IsMouseButtonDown(raylib.MouseMiddleButton) {
-			//	camera.Target = raylib.Vector2Subtract(raylib.GetMousePosition(), raylib.Vector2Scale(cameraMoveOffset, -1))
-			//}
-
 			if raylib.IsKeyPressed(raylib.KeyF8) {
 				AddToast("This is a toast message!")
 			}
@@ -136,12 +97,11 @@ func main() {
 			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) {
 				if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) {
 					drawing = false
-				} else if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvasSize.X, canvasSize.Y)) {
+				} else if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
 					drawing = true
 					currentStroke = penTool{
-						Color:   colourPickerVal,
-						Size:    brushSize,
-						Opacity: 1,
+						Color: colourPickerVal,
+						Size:  brushSize,
 					}
 				}
 			}
@@ -155,20 +115,20 @@ func main() {
 				}
 			}
 			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && currentStroke.Points != nil {
-				strokes = append(strokes, currentStroke)
-				currentStroke = penTool{}
-				undoneStrokes = []penTool{}
+				canvas.Strokes = append(canvas.Strokes, currentStroke)
+				canvas.UndoneStrokes = []penTool{}
+				canvas.Refresh = true
 
+				currentStroke = penTool{}
 				drawing = false
-				canvasRefresh = true
 			}
 
 			if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyDown(raylib.KeyLeftShift) && raylib.IsKeyPressed(raylib.KeyZ) {
-				redoStroke()
+				canvas.Redo()
 			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyZ) {
-				undoStroke()
+				canvas.Undo()
 			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyS) {
-				saveImage()
+				canvas.Save()
 			}
 		}
 
@@ -180,10 +140,7 @@ func main() {
 				gui.SetState(gui.STATE_NORMAL)
 			}
 
-			if canvasRefresh {
-				refreshCanvas()
-				canvasRefresh = false
-			}
+			canvas.Update()
 
 			UpdateToasts()
 		}
@@ -197,18 +154,18 @@ func main() {
 			// Canvas stuff
 			raylib.BeginMode2D(camera)
 			{
-				raylib.DrawRectangle(20, 20, int32(canvasSize.X), int32(canvasSize.Y), raylib.Fade(raylib.Black, 0.3))
-				raylib.DrawTexturePro(canvas.Texture, raylib.NewRectangle(0, 0, float32(canvas.Texture.Width), float32(-canvas.Texture.Height)), raylib.NewRectangle(10, 10, canvasSize.X, canvasSize.Y), raylib.Vector2{}, 0, raylib.White)
+				raylib.DrawRectangle(int32(canvas.Offset.X)+10, int32(canvas.Offset.Y)+10, int32(canvas.Size.X), int32(canvas.Size.Y), raylib.Fade(raylib.Black, 0.3))
+				canvas.Draw()
 
-				//raylib.BeginScissorMode(10, 10, int32(canvasSize.X), int32(canvasSize.Y))
+				raylib.BeginScissorMode(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y))
 				currentStroke.Draw(raylib.NewVector2(0, 0))
-				//raylib.EndScissorMode()
+				raylib.EndScissorMode()
 
 				if drawing {
-					raylib.DrawRectangleLines(10, 10, int32(canvasSize.X), int32(canvasSize.Y), raylib.DarkGray)
+					raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.DarkGray)
 					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
 				} else {
-					raylib.DrawRectangleLines(10, 10, int32(canvasSize.X), int32(canvasSize.Y), raylib.Gray)
+					raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.Gray)
 					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
 				}
 			}
@@ -223,14 +180,14 @@ func main() {
 					menu = StateFileMenu
 				}
 				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
-					saveImage()
+					canvas.Save()
 				}
 
 				if gui.Button(raylib.NewRectangle(float32(WindowWidth-70), 10, 25, 25), gui.IconText(gui.ICON_UNDO, "")) {
-					undoStroke()
+					canvas.Undo()
 				}
 				if gui.Button(raylib.NewRectangle(float32(WindowWidth-35), 10, 25, 25), gui.IconText(gui.ICON_REDO, "")) {
-					redoStroke()
+					canvas.Redo()
 				}
 
 				colourPickerVal = gui.ColorPicker(raylib.NewRectangle(float32(sidePanelRelativeX+10), 45, sidePanelWidth-45, colourPickerHeight), "Color", colourPickerVal)
@@ -238,11 +195,8 @@ func main() {
 				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 55+colourPickerHeight, 60, 20), "Brush Size")
 				brushSize = gui.Slider(raylib.NewRectangle(float32(sidePanelRelativeX+80), 55+colourPickerHeight, sidePanelWidth-90, 20), "", "", brushSize, 1, 100)
 
-				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 85+colourPickerHeight, 60, 20), "Brush Opacity")
-				brushOpacity = gui.Slider(raylib.NewRectangle(float32(sidePanelRelativeX+80), 85+colourPickerHeight, sidePanelWidth-90, 20), "", "", brushOpacity, 0, 1)
-
 				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 115+colourPickerHeight, 60, 20), "File Name")
-				if gui.TextBox(raylib.NewRectangle(float32(sidePanelRelativeX+80), 115+colourPickerHeight, sidePanelWidth-90, 20), &fileName, 40, fileNameEditing) {
+				if gui.TextBox(raylib.NewRectangle(float32(sidePanelRelativeX+80), 115+colourPickerHeight, sidePanelWidth-90, 20), &canvas.Name, 40, fileNameEditing) {
 					fileNameEditing = !fileNameEditing
 				}
 			}
@@ -253,17 +207,17 @@ func main() {
 			{
 				var text string
 
-				text = fmt.Sprintf("Strokes: %d | Points: %d", len(strokes), len(currentStroke.Points))
+				text = fmt.Sprintf("Strokes: %d | Points: %d", len(canvas.Strokes), len(currentStroke.Points))
 				gui.StatusBar(raylib.NewRectangle(0, float32(WindowHeight-20), 200, 20), text)
 
-				text = fmt.Sprintf("Canvas Size: %dx%d | Scale: %v", int32(canvasSize.X), int32(canvasSize.Y), canvasScale)
+				text = fmt.Sprintf("Canvas Size: %dx%d", int32(canvas.Size.X), int32(canvas.Size.Y))
 				gui.StatusBar(raylib.NewRectangle(199, float32(WindowHeight-20), 200, 20), text)
 			}
 
 			switch menu {
 			case StateFileMenu:
 				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
-				choice := gui.MessageBox(raylib.NewRectangle(float32(WindowWidth/2-200), float32(WindowHeight/2-100), 400, 200), "File", "This is a message box", "OK")
+				choice := gui.MessageBox(raylib.NewRectangle(float32(WindowWidth/2-200), float32(WindowHeight/2-100), 400, 200), "File", "This is a message box", "Ok")
 				if choice == 0 || choice == 1 {
 					menu = StateNone
 				}

@@ -5,10 +5,9 @@ import (
 )
 
 type penTool struct {
-	Color   raylib.Color
-	Size    float32
-	Opacity float32
-	Points  []raylib.Vector2
+	Color  raylib.Color
+	Size   float32
+	Points []raylib.Vector2
 }
 
 func (p *penTool) Draw(offset raylib.Vector2) {
