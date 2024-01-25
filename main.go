@@ -26,29 +26,31 @@ const (
 )
 
 const (
-	StateNone = iota
+	StateNormal = iota
 	StateDrawing
 	StateFileMenu
 )
 
 func checkDirs() {
+	if _, err := os.Stat(DirAssets); os.IsNotExist(err) {
+		panic("Assets directory not found")
+	}
 	if _, err := os.Stat(DirUserData); os.IsNotExist(err) {
-		err := os.Mkdir(DirUserData, 0755)
-		if err != nil {
-			panic(err)
+		if err := os.Mkdir(DirUserData, 0755); err != nil {
+			panic("Could not create userData directory")
 		}
 	}
 }
 
 func main() {
+	checkDirs() // Make sure all the directories exist
+
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
-	raylib.SetTraceLogLevel(raylib.LogTrace)
-	raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
+	//raylib.SetTraceLogLevel(raylib.LogTrace)
+	//raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
 	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
-
-	raylib.InitAudioDevice()
 
 	raylib.SetTargetFPS(WindowFPS)
 	//raylib.SetExitKey(0) // disable exit key
@@ -58,7 +60,6 @@ func main() {
 
 		canvas        = NewCanvas("NewProject", raylib.NewVector2(600, 530), raylib.NewVector2(15, 15))
 		currentStroke = penTool{}
-		drawing       = false
 
 		sidePanelWidth     = float32(350)
 		sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
@@ -70,18 +71,13 @@ func main() {
 
 		fileNameEditing = false
 
-		menu = StateNone
-
+		state         = StateNormal
 		appShouldQuit = false
 	)
 
-	// check if userData exists
-	checkDirs()
-
+	// LOOP
 	for !appShouldQuit {
-		// LOOP
 		appShouldQuit = raylib.WindowShouldClose()
-
 		if raylib.IsWindowResized() {
 			WindowWidth = int32(raylib.GetScreenWidth())
 			WindowHeight = int32(raylib.GetScreenHeight())
@@ -90,22 +86,18 @@ func main() {
 
 		// INPUT
 		{
-			if raylib.IsKeyPressed(raylib.KeyF8) {
-				AddToast("This is a toast message!")
-			}
-
-			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) {
-				if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) {
-					drawing = false
-				} else if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
-					drawing = true
+			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && state == StateNormal {
+				if !raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) &&
+					raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
+					state = StateDrawing
 					currentStroke = penTool{
 						Color: colourPickerVal,
 						Size:  brushSize,
 					}
 				}
 			}
-			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && drawing {
+
+			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && state == StateDrawing {
 				var safeZone float32 = 5
 
 				if len(currentStroke.Points) <= 1 {
@@ -113,14 +105,17 @@ func main() {
 				} else if raylib.Vector2Distance(currentStroke.Points[len(currentStroke.Points)-1], raylib.GetMousePosition()) > safeZone {
 					currentStroke.Points = append(currentStroke.Points, raylib.GetMousePosition())
 				}
+
+				state = StateDrawing
 			}
+
 			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && currentStroke.Points != nil {
 				canvas.Strokes = append(canvas.Strokes, currentStroke)
 				canvas.UndoneStrokes = []penTool{}
 				canvas.Refresh = true
 
 				currentStroke = penTool{}
-				drawing = false
+				state = StateNormal
 			}
 
 			if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyDown(raylib.KeyLeftShift) && raylib.IsKeyPressed(raylib.KeyZ) {
@@ -134,15 +129,13 @@ func main() {
 
 		// UPDATE
 		{
-			if drawing {
+			UpdateToasts()
+			canvas.Update()
+			if state != StateNormal {
 				gui.SetState(gui.STATE_DISABLED)
 			} else {
 				gui.SetState(gui.STATE_NORMAL)
 			}
-
-			canvas.Update()
-
-			UpdateToasts()
 		}
 
 		// DRAW
@@ -161,13 +154,8 @@ func main() {
 				currentStroke.Draw(raylib.NewVector2(0, 0))
 				raylib.EndScissorMode()
 
-				if drawing {
-					raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.DarkGray)
-					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
-				} else {
-					raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.Gray)
-					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
-				}
+				raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.DarkGray)
+				raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
 			}
 			raylib.EndMode2D()
 
@@ -177,7 +165,7 @@ func main() {
 				raylib.DrawRectangle(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Fade(raylib.White, 0.7))
 
 				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+10), 10, 25, 25), gui.IconText(gui.ICON_CROSS, "")) {
-					menu = StateFileMenu
+					state = StateFileMenu
 				}
 				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
 					canvas.Save()
@@ -214,26 +202,21 @@ func main() {
 				gui.StatusBar(raylib.NewRectangle(199, float32(WindowHeight-20), 200, 20), text)
 			}
 
-			switch menu {
+			switch state {
 			case StateFileMenu:
+				gui.SetState(gui.STATE_NORMAL)
 				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
 				choice := gui.MessageBox(raylib.NewRectangle(float32(WindowWidth/2-200), float32(WindowHeight/2-100), 400, 200), "File", "This is a message box", "Ok")
 				if choice == 0 || choice == 1 {
-					menu = StateNone
+					state = StateNormal
 				}
-			default:
-				menu = StateNone
 			}
 
-			// Draw toasts
 			DrawToasts()
 		}
 		raylib.EndDrawing()
 	}
 
-	// QUIT
-	raylib.CloseAudioDevice()
-	raylib.CloseWindow()
-
 	// GOODBYE
+	raylib.CloseWindow()
 }

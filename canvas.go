@@ -5,13 +5,17 @@ import (
 )
 
 type Canvas struct {
-	Name          string
-	Size          raylib.Vector2
-	Offset        raylib.Vector2
-	Target        raylib.RenderTexture2D
+	Name string
+
+	Size   raylib.Vector2
+	Offset raylib.Vector2
+
+	Target raylib.RenderTexture2D
+
 	Strokes       []penTool
 	UndoneStrokes []penTool
-	Refresh       bool
+
+	Refresh bool
 }
 
 func (c *Canvas) Update() {

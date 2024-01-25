@@ -18,4 +18,9 @@ func (p *penTool) Draw(offset raylib.Vector2) {
 		raylib.DrawLineEx(startPoint, endPoint, p.Size, p.Color)
 		raylib.DrawCircle(int32(startPoint.X), int32(startPoint.Y), p.Size/2, p.Color)
 	}
+	// Add a circle at the end of the stroke
+	if len(p.Points) > 0 {
+		endPoint := raylib.Vector2Add(p.Points[len(p.Points)-1], offset)
+		raylib.DrawCircle(int32(endPoint.X), int32(endPoint.Y), p.Size/2, p.Color)
+	}
 }
