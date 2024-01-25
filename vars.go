@@ -1,4 +1,4 @@
-package application
+package main
 
 var (
 	WindowTitle        = "Colouring App"
@@ -8,10 +8,9 @@ var (
 )
 
 const (
-	ScenePlayerData = iota
-	SceneTitle
-	SceneOptions
-	SceneDrawing
+	StateNone = iota
+	StateFileMenu
+	StateDrawing
 )
 
 const (
@@ -20,6 +19,5 @@ const (
 )
 
 var (
-	ShouldQuit   = false
-	CurrentScene = ScenePlayerData
+	ShouldQuit = false
 )
