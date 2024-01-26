@@ -259,9 +259,63 @@ func main() {
 				// Magic numbers
 				raylib.BeginScissorMode(int32(windowPos.X)+1, int32(windowPos.Y)+24, int32(windowPos.Width)-2, int32(windowPos.Height)-25)
 
-				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+34, windowPos.Width-22, 40), "Open Existing")
+				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+34, windowPos.Width-22, 200), "Create New")
 				{
-					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+44, 120, 20), "Maned Wolf") {
+					var err error
+
+					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+44, 100, 20), "File Name")
+					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+44, windowPos.Width-152, 20), &newProjectName, 40, newProjectNameEditing) {
+						newProjectNameEditing = !newProjectNameEditing
+					}
+
+					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+74, 100, 20), "Canvas Width")
+					lastWidth := newCanvasWidth
+					width := fmt.Sprintf("%d", newCanvasWidth)
+					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+74, windowPos.Width-152, 20), &width, 6, newCanvasWidthEditing) {
+						newCanvasWidthEditing = !newCanvasWidthEditing
+					}
+					if newCanvasWidth, err = strconv.Atoi(width); err != nil {
+						newCanvasWidth = lastWidth
+					}
+
+					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+104, 100, 20), "Canvas Height")
+					lastHeight := newCanvasHeight
+					height := fmt.Sprintf("%d", newCanvasHeight)
+					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+104, windowPos.Width-152, 20), &height, 6, newCanvasHeightEditing) {
+						newCanvasHeightEditing = !newCanvasHeightEditing
+					}
+					if newCanvasHeight, err = strconv.Atoi(height); err != nil {
+						newCanvasHeight = lastHeight
+					}
+
+					colors := []raylib.Color{raylib.Red, raylib.Orange, raylib.Yellow, raylib.Green, raylib.Blue, raylib.Purple, raylib.Pink, raylib.Brown, raylib.Black, raylib.White}
+					for i := 0; i < len(colors); i++ {
+						posX := windowPos.X + 21 + ((float32(i) * 26) + float32(i)*11)
+						posY := windowPos.Y + 149
+
+						if gui.Button(raylib.NewRectangle(posX, posY, 26, 26), "") {
+							newCanvasBackgroundColor = colors[i]
+						}
+
+						if newCanvasBackgroundColor == colors[i] {
+							raylib.DrawRectangle(int32(posX)-4, int32(posY)-4, 26+8, 26+8, raylib.Fade(raylib.Black, 0.2))
+							raylib.DrawRectangle(int32(posX), int32(posY), 26, 26, colors[i])
+						} else {
+							raylib.DrawRectangle(int32(posX), int32(posY), 26, 26, colors[i])
+							raylib.DrawRectangleLines(int32(posX), int32(posY), 26, 26, raylib.Black)
+						}
+					}
+
+					if gui.Button(raylib.NewRectangle(windowPos.X+windowPos.Width-140, windowPos.Y+204, 120, 20), "Create") {
+						state = StateNormal
+						createNewCanvas = true
+						AddToast("Created New Canvas")
+					}
+				}
+
+				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+244, windowPos.Width-22, 40), "Open Existing")
+				{
+					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+254, windowPos.Width-42, 20), "Maned Wolf") {
 						loadedImage := raylib.LoadImage(DirAssets + "manedWolf.jpg")
 						{
 							raylib.ImageFlipHorizontal(loadedImage)
@@ -273,43 +327,6 @@ func main() {
 						state = StateNormal
 
 						AddToast("Loaded Maned Wolf")
-					}
-				}
-
-				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+84, windowPos.Width-22, 200), "Create New")
-				{
-					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+94, 100, 20), "File Name")
-					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+94, windowPos.Width-152, 20), &newProjectName, 40, newProjectNameEditing) {
-						newProjectNameEditing = !newProjectNameEditing
-					}
-
-					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+124, 100, 20), "Canvas Size")
-					{
-						var err error
-
-						lastWidth := newCanvasWidth
-						width := fmt.Sprintf("%d", newCanvasWidth)
-						if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+124, windowPos.Width-152, 20), &width, 40, newCanvasWidthEditing) {
-							newCanvasWidthEditing = !newCanvasWidthEditing
-						}
-						if newCanvasWidth, err = strconv.Atoi(width); err != nil {
-							newCanvasWidth = lastWidth
-						}
-
-						lastHeight := newCanvasHeight
-						height := fmt.Sprintf("%d", newCanvasHeight)
-						if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+154, windowPos.Width-152, 20), &height, 40, newCanvasHeightEditing) {
-							newCanvasHeightEditing = !newCanvasHeightEditing
-						}
-						if newCanvasHeight, err = strconv.Atoi(height); err != nil {
-							newCanvasHeight = lastHeight
-						}
-					}
-
-					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+184, 120, 20), "Create") {
-						state = StateNormal
-						createNewCanvas = true
-						AddToast("Created New Canvas")
 					}
 				}
 
