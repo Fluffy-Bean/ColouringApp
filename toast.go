@@ -22,9 +22,7 @@ type toast struct {
 }
 
 func AddToast(text string) {
-	toast := toast{Text: text, Age: time.Now()}
-	toasts = append(toasts, toast)
-
+	toasts = append(toasts, toast{Text: text, Age: time.Now()})
 	fmt.Printf("Added toast: '%s'\n", text)
 }
 

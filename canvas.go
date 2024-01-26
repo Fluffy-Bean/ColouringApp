@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -12,8 +14,8 @@ type Canvas struct {
 
 	Target raylib.RenderTexture2D
 
-	Strokes       []penTool
-	UndoneStrokes []penTool
+	Strokes       []raylib.Texture2D
+	UndoneStrokes []raylib.Texture2D
 
 	Refresh bool
 }
@@ -24,13 +26,26 @@ func (c *Canvas) Update() {
 
 		raylib.BeginTextureMode(c.Target)
 		raylib.ClearBackground(raylib.White)
-		for _, mark := range c.Strokes {
-			mark.Draw(raylib.Vector2Scale(c.Offset, -1))
+		for _, stroke := range c.Strokes {
+			raylib.DrawTexturePro(
+				stroke,
+				raylib.NewRectangle(0, 0, c.Size.X, -c.Size.Y),
+				raylib.NewRectangle(0, 0, c.Size.X, c.Size.Y),
+				raylib.Vector2Zero(),
+				0,
+				raylib.White,
+			)
 		}
 		raylib.EndTextureMode()
 
 		c.Refresh = false
 	}
+}
+
+func (c *Canvas) AddStroke(stroke raylib.Texture2D) {
+	c.Strokes = append(c.Strokes, stroke)
+	c.UndoneStrokes = []raylib.Texture2D{}
+	c.Refresh = true
 }
 
 func (c *Canvas) Undo() {
@@ -65,6 +80,8 @@ func (c *Canvas) Draw() {
 }
 
 func (c *Canvas) Save() {
+	c.Name = strings.Trim(c.Name, " ")
+
 	if c.Name == "" {
 		AddToast("Please enter a file name!")
 	} else {
@@ -85,8 +102,8 @@ func NewCanvas(name string, size, offset raylib.Vector2) *Canvas {
 		Size:          size,
 		Offset:        offset,
 		Target:        raylib.LoadRenderTexture(int32(size.X), int32(size.Y)),
-		Strokes:       []penTool{},
-		UndoneStrokes: []penTool{},
+		Strokes:       []raylib.Texture2D{},
+		UndoneStrokes: []raylib.Texture2D{},
 		Refresh:       true,
 	}
 }

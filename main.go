@@ -12,7 +12,6 @@ const (
 	WindowTitle     = "Colouring App"
 	WindowMinWidth  = int32(800)
 	WindowMinHeight = int32(600)
-	WindowFPS       = int32(144)
 )
 
 var (
@@ -31,6 +30,10 @@ const (
 	StateFileMenu
 )
 
+var (
+	canvas *Canvas
+)
+
 func checkDirs() {
 	if _, err := os.Stat(DirAssets); os.IsNotExist(err) {
 		panic("Assets directory not found")
@@ -46,19 +49,18 @@ func main() {
 	checkDirs() // Make sure all the directories exist
 
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
+	raylib.SetConfigFlags(raylib.FlagVsyncHint)
 	//raylib.SetTraceLogLevel(raylib.LogTrace)
 	//raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
 	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
-
-	raylib.SetTargetFPS(WindowFPS)
+	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
 	//raylib.SetExitKey(0) // disable exit key
 
 	var (
 		camera = raylib.NewCamera2D(raylib.NewVector2(0, 0), raylib.NewVector2(0, 0), 0, 1)
 
-		canvas        = NewCanvas("NewProject", raylib.NewVector2(700, 530), raylib.NewVector2(15, 15))
 		currentStroke = penTool{}
 
 		sidePanelWidth     = float32(350)
@@ -73,7 +75,13 @@ func main() {
 
 		state         = StateNormal
 		appShouldQuit = false
+
+		showCursor     = true
+		showDebugStats = false
 	)
+
+	// init canvas
+	canvas = NewCanvas("NewProject", raylib.NewVector2(700, 530), raylib.NewVector2(15, 15))
 
 	// LOOP
 	for !appShouldQuit {
@@ -86,13 +94,17 @@ func main() {
 
 		// INPUT
 		{
+			if raylib.IsKeyPressed(raylib.KeyF8) {
+				showDebugStats = !showDebugStats
+			}
+
 			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && state == StateNormal {
 				if !raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) &&
 					raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
 					state = StateDrawing
 					currentStroke = penTool{
-						Color: colourPickerVal,
 						Size:  brushSize,
+						Color: colourPickerVal,
 					}
 				}
 			}
@@ -110,10 +122,7 @@ func main() {
 			}
 
 			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && currentStroke.Points != nil {
-				canvas.Strokes = append(canvas.Strokes, currentStroke)
-				canvas.UndoneStrokes = []penTool{}
-				canvas.Refresh = true
-
+				canvas.AddStroke(currentStroke.Render())
 				currentStroke = penTool{}
 				state = StateNormal
 			}
@@ -136,6 +145,12 @@ func main() {
 			} else {
 				gui.SetState(gui.STATE_NORMAL)
 			}
+
+			if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) {
+				showCursor = false
+			} else {
+				showCursor = true
+			}
 		}
 
 		// DRAW
@@ -151,13 +166,17 @@ func main() {
 				canvas.Draw()
 
 				raylib.BeginScissorMode(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y))
-				currentStroke.Draw(raylib.NewVector2(0, 0))
+				currentStroke.Draw()
 				raylib.EndScissorMode()
 
 				raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.DarkGray)
-				raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
 			}
 			raylib.EndMode2D()
+
+			// Cursor
+			if showCursor {
+				raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
+			}
 
 			// UI stuff
 			raylib.BeginScissorMode(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight)
@@ -192,14 +211,17 @@ func main() {
 			raylib.DrawRectangleLines(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Gray)
 
 			// Info
-			{
+			if showDebugStats {
 				var text string
 
 				text = fmt.Sprintf("Strokes: %d | Points: %d", len(canvas.Strokes), len(currentStroke.Points))
-				gui.StatusBar(raylib.NewRectangle(0, float32(WindowHeight-20), 200, 20), text)
+				gui.StatusBar(raylib.NewRectangle(0, float32(WindowHeight-20), 150, 20), text)
 
 				text = fmt.Sprintf("Canvas Size: %dx%d", int32(canvas.Size.X), int32(canvas.Size.Y))
-				gui.StatusBar(raylib.NewRectangle(199, float32(WindowHeight-20), 200, 20), text)
+				gui.StatusBar(raylib.NewRectangle(150, float32(WindowHeight-20), 150, 20), text)
+
+				text = fmt.Sprintf("FPS: %d | DT: %f", raylib.GetFPS(), raylib.GetFrameTime())
+				gui.StatusBar(raylib.NewRectangle(300, float32(WindowHeight-20), 170, 20), text)
 			}
 
 			switch state {
