@@ -30,9 +30,7 @@ const (
 	StateFileMenu
 )
 
-var (
-	canvas *Canvas
-)
+var canvas *Canvas
 
 func checkDirs() {
 	if _, err := os.Stat(DirAssets); os.IsNotExist(err) {
@@ -49,15 +47,15 @@ func main() {
 	checkDirs() // Make sure all the directories exist
 
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
-	//raylib.SetTraceLogLevel(raylib.LogTrace)
-	//raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
-	//raylib.SetConfigFlags(raylib.FlagVsyncHint)
-	//raylib.SetConfigFlags(raylib.FlagFullscreenMode)
+	// raylib.SetTraceLogLevel(raylib.LogTrace)
+	// raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
+	// raylib.SetConfigFlags(raylib.FlagVsyncHint)
+	// raylib.SetConfigFlags(raylib.FlagFullscreenMode)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
 	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
 	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
-	//raylib.SetExitKey(0) // disable exit key
+	// raylib.SetExitKey(0) // disable exit key
 
 	var (
 		camera = raylib.NewCamera2D(raylib.NewVector2(0, 0), raylib.NewVector2(0, 0), 0, 1)
@@ -66,7 +64,7 @@ func main() {
 
 		sidePanelWidth     = float32(350)
 		sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
-		//sidePanelPos       = sidePanelRelativeX
+		// sidePanelPos       = sidePanelRelativeX
 
 		colourPickerVal    = raylib.Orange
 		colourPickerHeight = float32(250)

@@ -26,7 +26,7 @@ func (c *Canvas) Update() {
 		c.Target = raylib.LoadRenderTexture(int32(c.Size.X), int32(c.Size.Y))
 
 		raylib.BeginTextureMode(c.Target)
-		//raylib.ClearBackground(raylib.White)
+		// raylib.ClearBackground(raylib.White)
 		raylib.DrawTexturePro(
 			c.Background,
 			raylib.NewRectangle(0, 0, c.Size.X, -c.Size.Y),
