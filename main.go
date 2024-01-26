@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	gui "github.com/gen2brain/raylib-go/raygui"
 	raylib "github.com/gen2brain/raylib-go/raylib"
+	"os"
+	"strconv"
 )
 
 const (
@@ -64,7 +64,6 @@ func main() {
 
 		sidePanelWidth     = float32(350)
 		sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
-		// sidePanelPos       = sidePanelRelativeX
 
 		colourPickerVal    = raylib.Orange
 		colourPickerHeight = float32(250)
@@ -80,14 +79,20 @@ func main() {
 		showDebugStats = false
 	)
 
-	// init canvas
-	canvasBackground := raylib.LoadRenderTexture(700, 530)
-	{
-		raylib.BeginTextureMode(canvasBackground)
-		raylib.ClearBackground(raylib.White)
-		raylib.EndTextureMode()
-	}
-	canvas = NewCanvas("NewProject", raylib.NewVector2(700, 530), raylib.NewVector2(15, 15), canvasBackground.Texture)
+	var (
+		createNewCanvas = true
+
+		newProjectName        = "NewProject"
+		newProjectNameEditing = false
+
+		newCanvasWidth        = 700
+		newCanvasWidthEditing = false
+
+		newCanvasHeight        = 530
+		newCanvasHeightEditing = false
+
+		newCanvasBackgroundColor = raylib.White
+	)
 
 	// LOOP
 	for !appShouldQuit {
@@ -96,6 +101,13 @@ func main() {
 			WindowWidth = int32(raylib.GetScreenWidth())
 			WindowHeight = int32(raylib.GetScreenHeight())
 			sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
+		}
+
+		// CREATE CANVAS
+		if createNewCanvas {
+			canvasBackground := NewBackground(raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), newCanvasBackgroundColor)
+			canvas = NewCanvas("NewProject", raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), raylib.NewVector2(15, 15), canvasBackground)
+			createNewCanvas = false
 		}
 
 		// INPUT
@@ -160,12 +172,6 @@ func main() {
 			} else {
 				showCursor = true
 			}
-
-			//if state == StateDrawing {
-			//	sidePanelPos = int32(raylib.Lerp(float32(sidePanelPos), float32(WindowWidth), 0.5))
-			//} else {
-			//	sidePanelPos = int32(raylib.Lerp(float32(sidePanelPos), float32(sidePanelRelativeX), 0.5))
-			//}
 		}
 
 		// DRAW
@@ -244,27 +250,68 @@ func main() {
 				gui.SetState(gui.STATE_NORMAL)
 				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
 
-				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-100), 400, 200)
+				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-200), 400, 400)
 				if gui.WindowBox(windowPos, "Open or New File") {
 					state = StateNormal
 				}
 
 				// Magic numbers
 				raylib.BeginScissorMode(int32(windowPos.X)+1, int32(windowPos.Y)+24, int32(windowPos.Width)-2, int32(windowPos.Height)-25)
-				if gui.Button(raylib.NewRectangle(float32((WindowWidth/2)-190), float32((WindowHeight/2)-80), 180, 20), "New File") {
-					loadedImage := raylib.LoadImage(DirAssets + "manedWolf.jpg")
-					raylib.ImageFlipHorizontal(loadedImage)
-					raylib.ImageRotate(loadedImage, 180)
 
-					// Create New Canvas with the loaded image as the background
-					canvas = NewCanvas("NewProject", raylib.NewVector2(float32(loadedImage.Width), float32(loadedImage.Height)), raylib.NewVector2(15, 15), raylib.LoadTextureFromImage(loadedImage))
+				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+34, windowPos.Width-22, 40), "Open Existing")
+				{
+					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+44, 120, 20), "Maned Wolf") {
+						loadedImage := raylib.LoadImage(DirAssets + "manedWolf.jpg")
+						{
+							raylib.ImageFlipHorizontal(loadedImage)
+							raylib.ImageRotate(loadedImage, 180)
+						}
+						canvas = NewCanvas("NewProject", raylib.NewVector2(float32(loadedImage.Width), float32(loadedImage.Height)), raylib.NewVector2(15, 15), raylib.LoadTextureFromImage(loadedImage))
 
-					// SAVE MEMORY
-					raylib.UnloadImage(loadedImage)
+						raylib.UnloadImage(loadedImage)
+						state = StateNormal
 
-					// Aurghhhhh
-					state = StateNormal
+						AddToast("Loaded Maned Wolf")
+					}
 				}
+
+				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+84, windowPos.Width-22, 200), "Create New")
+				{
+					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+94, 100, 20), "File Name")
+					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+94, windowPos.Width-152, 20), &newProjectName, 40, newProjectNameEditing) {
+						newProjectNameEditing = !newProjectNameEditing
+					}
+
+					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+124, 100, 20), "Canvas Size")
+					{
+						var err error
+
+						lastWidth := newCanvasWidth
+						width := fmt.Sprintf("%d", newCanvasWidth)
+						if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+124, windowPos.Width-152, 20), &width, 40, newCanvasWidthEditing) {
+							newCanvasWidthEditing = !newCanvasWidthEditing
+						}
+						if newCanvasWidth, err = strconv.Atoi(width); err != nil {
+							newCanvasWidth = lastWidth
+						}
+
+						lastHeight := newCanvasHeight
+						height := fmt.Sprintf("%d", newCanvasHeight)
+						if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+154, windowPos.Width-152, 20), &height, 40, newCanvasHeightEditing) {
+							newCanvasHeightEditing = !newCanvasHeightEditing
+						}
+						if newCanvasHeight, err = strconv.Atoi(height); err != nil {
+							newCanvasHeight = lastHeight
+						}
+					}
+
+					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+184, 120, 20), "Create") {
+						state = StateNormal
+						createNewCanvas = true
+						AddToast("Created New Canvas")
+					}
+				}
+
 				raylib.EndScissorMode()
 
 			default:

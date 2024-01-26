@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	raylib "github.com/gen2brain/raylib-go/raylib"
@@ -26,7 +27,7 @@ func (c *Canvas) Update() {
 		c.Target = raylib.LoadRenderTexture(int32(c.Size.X), int32(c.Size.Y))
 
 		raylib.BeginTextureMode(c.Target)
-		// raylib.ClearBackground(raylib.White)
+
 		raylib.DrawTexturePro(
 			c.Background,
 			raylib.NewRectangle(0, 0, c.Size.X, -c.Size.Y),
@@ -124,4 +125,16 @@ func NewCanvas(name string, size, offset raylib.Vector2, background raylib.Textu
 		UndoneStrokes: []raylib.Texture2D{},
 		Refresh:       true,
 	}
+}
+
+func NewBackground(size raylib.Vector2, color raylib.Color) raylib.Texture2D {
+	texture := raylib.LoadRenderTexture(int32(size.X), int32(size.Y))
+
+	fmt.Println(size)
+
+	raylib.BeginTextureMode(texture)
+	raylib.DrawRectangle(0, 0, int32(size.X), int32(size.Y), color)
+	raylib.EndTextureMode()
+
+	return texture.Texture
 }
