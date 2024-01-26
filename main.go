@@ -49,9 +49,10 @@ func main() {
 	checkDirs() // Make sure all the directories exist
 
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
-	raylib.SetConfigFlags(raylib.FlagVsyncHint)
 	//raylib.SetTraceLogLevel(raylib.LogTrace)
 	//raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
+	//raylib.SetConfigFlags(raylib.FlagVsyncHint)
+	//raylib.SetConfigFlags(raylib.FlagFullscreenMode)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
 	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
@@ -65,6 +66,7 @@ func main() {
 
 		sidePanelWidth     = float32(350)
 		sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
+		//sidePanelPos       = sidePanelRelativeX
 
 		colourPickerVal    = raylib.Orange
 		colourPickerHeight = float32(250)
@@ -81,7 +83,13 @@ func main() {
 	)
 
 	// init canvas
-	canvas = NewCanvas("NewProject", raylib.NewVector2(700, 530), raylib.NewVector2(15, 15))
+	canvasBackground := raylib.LoadRenderTexture(700, 530)
+	{
+		raylib.BeginTextureMode(canvasBackground)
+		raylib.ClearBackground(raylib.White)
+		raylib.EndTextureMode()
+	}
+	canvas = NewCanvas("NewProject", raylib.NewVector2(700, 530), raylib.NewVector2(15, 15), canvasBackground.Texture)
 
 	// LOOP
 	for !appShouldQuit {
@@ -94,6 +102,9 @@ func main() {
 
 		// INPUT
 		{
+			if raylib.IsKeyPressed(raylib.KeyF7) {
+				AddToast("This is a test toast")
+			}
 			if raylib.IsKeyPressed(raylib.KeyF8) {
 				showDebugStats = !showDebugStats
 			}
@@ -151,6 +162,12 @@ func main() {
 			} else {
 				showCursor = true
 			}
+
+			//if state == StateDrawing {
+			//	sidePanelPos = int32(raylib.Lerp(float32(sidePanelPos), float32(WindowWidth), 0.5))
+			//} else {
+			//	sidePanelPos = int32(raylib.Lerp(float32(sidePanelPos), float32(sidePanelRelativeX), 0.5))
+			//}
 		}
 
 		// DRAW
@@ -173,17 +190,12 @@ func main() {
 			}
 			raylib.EndMode2D()
 
-			// Cursor
-			if showCursor {
-				raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
-			}
-
 			// UI stuff
 			raylib.BeginScissorMode(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight)
 			{
 				raylib.DrawRectangle(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Fade(raylib.White, 0.7))
 
-				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+10), 10, 25, 25), gui.IconText(gui.ICON_CROSS, "")) {
+				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+10), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_OPEN, "")) {
 					state = StateFileMenu
 				}
 				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
@@ -206,9 +218,9 @@ func main() {
 				if gui.TextBox(raylib.NewRectangle(float32(sidePanelRelativeX+80), 115+colourPickerHeight, sidePanelWidth-90, 20), &canvas.Name, 40, fileNameEditing) {
 					fileNameEditing = !fileNameEditing
 				}
+				raylib.DrawRectangleLines(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Gray)
 			}
 			raylib.EndScissorMode()
-			raylib.DrawRectangleLines(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Gray)
 
 			// Info
 			if showDebugStats {
@@ -224,14 +236,39 @@ func main() {
 				gui.StatusBar(raylib.NewRectangle(300, float32(WindowHeight-20), 170, 20), text)
 			}
 
+			// Cursor
+			if showCursor {
+			}
+			raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
+
 			switch state {
 			case StateFileMenu:
 				gui.SetState(gui.STATE_NORMAL)
 				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
-				choice := gui.MessageBox(raylib.NewRectangle(float32(WindowWidth/2-200), float32(WindowHeight/2-100), 400, 200), "File", "This is a message box", "Ok")
-				if choice == 0 || choice == 1 {
+
+				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-100), 400, 200)
+				if gui.WindowBox(windowPos, "Open or New File") {
 					state = StateNormal
 				}
+
+				// Magic numbers
+				raylib.BeginScissorMode(int32(windowPos.X)+1, int32(windowPos.Y)+24, int32(windowPos.Width)-2, int32(windowPos.Height)-25)
+				if gui.Button(raylib.NewRectangle(float32((WindowWidth/2)-190), float32((WindowHeight/2)-80), 180, 20), "New File") {
+					loadedImage := raylib.LoadImage(DirAssets + "manedWolf.jpg")
+					raylib.ImageFlipHorizontal(loadedImage)
+					raylib.ImageRotate(loadedImage, 180)
+
+					// Create New Canvas with the loaded image as the background
+					canvas = NewCanvas("NewProject", raylib.NewVector2(float32(loadedImage.Width), float32(loadedImage.Height)), raylib.NewVector2(15, 15), raylib.LoadTextureFromImage(loadedImage))
+
+					// SAVE MEMORY
+					raylib.UnloadImage(loadedImage)
+
+					// Aurghhhhh
+					state = StateNormal
+				}
+				raylib.EndScissorMode()
+
 			default:
 			}
 

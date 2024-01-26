@@ -12,7 +12,8 @@ type Canvas struct {
 	Size   raylib.Vector2
 	Offset raylib.Vector2
 
-	Target raylib.RenderTexture2D
+	Target     raylib.RenderTexture2D
+	Background raylib.Texture2D
 
 	Strokes       []raylib.Texture2D
 	UndoneStrokes []raylib.Texture2D
@@ -25,7 +26,16 @@ func (c *Canvas) Update() {
 		c.Target = raylib.LoadRenderTexture(int32(c.Size.X), int32(c.Size.Y))
 
 		raylib.BeginTextureMode(c.Target)
-		raylib.ClearBackground(raylib.White)
+		//raylib.ClearBackground(raylib.White)
+		raylib.DrawTexturePro(
+			c.Background,
+			raylib.NewRectangle(0, 0, c.Size.X, -c.Size.Y),
+			raylib.NewRectangle(0, 0, c.Size.X, c.Size.Y),
+			raylib.Vector2Zero(),
+			0,
+			raylib.White,
+		)
+
 		for _, stroke := range c.Strokes {
 			raylib.DrawTexturePro(
 				stroke,
@@ -44,7 +54,14 @@ func (c *Canvas) Update() {
 
 func (c *Canvas) AddStroke(stroke raylib.Texture2D) {
 	c.Strokes = append(c.Strokes, stroke)
-	c.UndoneStrokes = []raylib.Texture2D{}
+
+	if len(c.UndoneStrokes) > 0 {
+		for i := range c.UndoneStrokes {
+			raylib.UnloadTexture(c.UndoneStrokes[i])
+		}
+		c.UndoneStrokes = []raylib.Texture2D{}
+	}
+
 	c.Refresh = true
 }
 
@@ -96,12 +113,13 @@ func (c *Canvas) Save() {
 	}
 }
 
-func NewCanvas(name string, size, offset raylib.Vector2) *Canvas {
+func NewCanvas(name string, size, offset raylib.Vector2, background raylib.Texture2D) *Canvas {
 	return &Canvas{
 		Name:          name,
 		Size:          size,
 		Offset:        offset,
 		Target:        raylib.LoadRenderTexture(int32(size.X), int32(size.Y)),
+		Background:    background,
 		Strokes:       []raylib.Texture2D{},
 		UndoneStrokes: []raylib.Texture2D{},
 		Refresh:       true,
