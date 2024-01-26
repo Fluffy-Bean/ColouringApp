@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	gui "github.com/gen2brain/raylib-go/raygui"
-	raylib "github.com/gen2brain/raylib-go/raylib"
 	"os"
 	"strconv"
+
+	gui "github.com/gen2brain/raylib-go/raygui"
+	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
 const (
