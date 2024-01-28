@@ -48,16 +48,15 @@ func main() {
 	checkDirs() // Make sure all the directories exist
 
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
-	// raylib.SetTraceLogLevel(raylib.LogTrace)
+	//raylib.SetConfigFlags(raylib.FlagWindowHighdpi)
 	// raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
-	// raylib.SetConfigFlags(raylib.FlagVsyncHint)
-	// raylib.SetConfigFlags(raylib.FlagFullscreenMode)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
 	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
 	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
 	// raylib.SetExitKey(0) // disable exit key
 
+	// Augh
 	var (
 		camera = raylib.NewCamera2D(raylib.NewVector2(0, 0), raylib.NewVector2(0, 0), 0, 1)
 
@@ -80,6 +79,7 @@ func main() {
 		showDebugStats = false
 	)
 
+	// New Canvas stuff
 	var (
 		createNewCanvas = true
 
@@ -94,6 +94,26 @@ func main() {
 
 		newCanvasBackgroundColor = raylib.White
 	)
+
+	var userDataProjects []string
+	{
+		f, err := os.Open(DirUserData)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		files, err := f.Readdir(-1)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, file := range files {
+			if file.Mode().IsRegular() {
+				userDataProjects = append(userDataProjects, file.Name())
+			}
+		}
+	}
 
 	// LOOP
 	for !appShouldQuit {
@@ -132,7 +152,7 @@ func main() {
 			}
 
 			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && state == StateDrawing {
-				var safeZone float32 = 5
+				var safeZone float32 = 1
 
 				if len(currentStroke.Points) <= 1 {
 					currentStroke.Points = append(currentStroke.Points, raylib.GetMousePosition())
@@ -198,7 +218,7 @@ func main() {
 			// UI stuff
 			raylib.BeginScissorMode(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight)
 			{
-				raylib.DrawRectangle(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Fade(raylib.White, 0.7))
+				raylib.DrawRectangle(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Fade(raylib.White, 0.9))
 
 				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+10), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_OPEN, "")) {
 					state = StateFileMenu
@@ -313,7 +333,7 @@ func main() {
 					}
 				}
 
-				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+244, windowPos.Width-22, 40), "Open Existing")
+				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+244, windowPos.Width-22, float32(len(userDataProjects)*20)+10), "Open Existing")
 				{
 					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+254, windowPos.Width-42, 20), "Maned Wolf") {
 						loadedImage := raylib.LoadImage(DirAssets + "manedWolf.jpg")
@@ -327,6 +347,22 @@ func main() {
 						state = StateNormal
 
 						AddToast("Loaded Maned Wolf")
+					}
+
+					for i := 0; i < len(userDataProjects); i++ {
+						if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+274+float32(i*20), windowPos.Width-42, 20), userDataProjects[i]) {
+							loadedImage := raylib.LoadImage(DirUserData + userDataProjects[i])
+							{
+								raylib.ImageFlipHorizontal(loadedImage)
+								raylib.ImageRotate(loadedImage, 180)
+							}
+							canvas = NewCanvas("NewProject", raylib.NewVector2(float32(loadedImage.Width), float32(loadedImage.Height)), raylib.NewVector2(15, 15), raylib.LoadTextureFromImage(loadedImage))
+
+							raylib.UnloadImage(loadedImage)
+							state = StateNormal
+
+							AddToast("Loaded " + userDataProjects[i])
+						}
 					}
 				}
 

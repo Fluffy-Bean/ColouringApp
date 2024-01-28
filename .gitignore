@@ -5,4 +5,10 @@
 # Remove Enviroment Variables
 .env
 
+# Remove User Data
 userData
+
+# Remove Compiled Files
+ColouringApp
+ColouringApp.exe
+ColouringApp.zip
