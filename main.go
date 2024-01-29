@@ -11,14 +11,13 @@ import (
 )
 
 const (
-	WindowTitle     = "Colouring App"
-	WindowMinWidth  = int32(800)
-	WindowMinHeight = int32(600)
-)
+	applicationTitle           = "Colouring App"
+	applicationMinWindowWidth  = int32(800)
+	applicationMinWindowHeight = int32(600)
 
-var (
-	WindowWidth  = WindowMinWidth
-	WindowHeight = WindowMinHeight
+	defaultProjectName   = "NewProject"
+	defaultProjectWidth  = 700
+	defaultProjectHeight = 530
 )
 
 const (
@@ -33,9 +32,56 @@ const (
 	StateNewCanvas
 )
 
-var canvas *Canvas
+var (
+	applicationState           = StateNormal
+	applicationShouldQuit      = false
+	applicationShowDebugValues = false
+	applicationWindowWidth     = applicationMinWindowWidth
+	applicationWindowHeight    = applicationMinWindowHeight
+)
 
-func checkDirs() {
+var (
+	newPenStroke         = penTool{}
+	newPenStrokeSafeZone = 1
+
+	toolPanelWidth  = float32(350)
+	toolPanelOffset = applicationWindowWidth - int32(toolPanelWidth)
+
+	toolPanelColourPicker       = raylib.Orange
+	toolPanelColourPickerHeight = float32(250)
+
+	toolPanelBrushSize = float32(10)
+
+	isEditingCanvasName = false
+)
+
+var (
+	canvas *Canvas
+
+	shouldCreateNewCanvas = true
+
+	newCanvasName          = defaultProjectName
+	isEditingNewCanvasName = false
+
+	newCanvasWidth          = defaultProjectWidth
+	isEditingNewCanvasWidth = false
+
+	newCanvasHeight          = defaultProjectHeight
+	isEditingNewCanvasHeight = false
+
+	newCanvasColor     = raylib.White
+	newCanvasImagePath = ""
+)
+
+func main() {
+	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
+
+	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
+
+	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight))
+	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
+	raylib.SetExitKey(0) // disable exit key
+
 	if _, err := os.Stat(DirAssets); os.IsNotExist(err) {
 		panic("Assets directory not found")
 	}
@@ -44,59 +90,6 @@ func checkDirs() {
 			panic("Could not create userData directory")
 		}
 	}
-}
-
-func main() {
-	checkDirs() // Make sure all the directories exist
-
-	raylib.SetConfigFlags(raylib.FlagWindowResizable)
-	raylib.SetConfigFlags(raylib.FlagWindowHighdpi)
-	raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
-
-	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
-	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
-	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
-	raylib.SetExitKey(0) // disable exit key
-
-	// Augh
-	var (
-		camera = raylib.NewCamera2D(raylib.NewVector2(0, 0), raylib.NewVector2(0, 0), 0, 1)
-
-		currentStroke = penTool{}
-
-		sidePanelWidth     = float32(350)
-		sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
-
-		colourPickerVal    = raylib.Orange
-		colourPickerHeight = float32(250)
-
-		brushSize = float32(10)
-
-		fileNameEditing = false
-
-		state         = StateNormal
-		appShouldQuit = false
-
-		showCursor     = true
-		showDebugStats = false
-	)
-
-	// New Canvas stuff
-	var (
-		createNewCanvas = true
-
-		newProjectName        = "NewProject"
-		newProjectNameEditing = false
-
-		newCanvasWidth        = 700
-		newCanvasWidthEditing = false
-
-		newCanvasHeight        = 530
-		newCanvasHeightEditing = false
-
-		newCanvasBackgroundColor = raylib.White
-		newCanvasBackgroundImage = ""
-	)
 
 	var userDataProjects []string
 	{
@@ -104,7 +97,12 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		defer f.Close()
+		defer func() {
+			err := f.Close()
+			if err != nil {
+				panic(err)
+			}
+		}()
 
 		files, err := f.Readdir(-1)
 		if err != nil {
@@ -119,40 +117,40 @@ func main() {
 	}
 
 	// LOOP
-	for !appShouldQuit {
-		appShouldQuit = raylib.WindowShouldClose()
+	for !applicationShouldQuit {
+		applicationShouldQuit = raylib.WindowShouldClose()
 		if raylib.IsWindowResized() {
-			WindowWidth = int32(raylib.GetScreenWidth())
-			WindowHeight = int32(raylib.GetScreenHeight())
-			sidePanelRelativeX = WindowWidth - int32(sidePanelWidth)
+			applicationWindowWidth = int32(raylib.GetScreenWidth())
+			applicationWindowHeight = int32(raylib.GetScreenHeight())
+			toolPanelOffset = applicationWindowWidth - int32(toolPanelWidth)
 		}
 
 		// CREATE CANVAS
-		if createNewCanvas {
+		if shouldCreateNewCanvas {
 			var canvasBackground raylib.Texture2D
-			if newCanvasBackgroundImage != "" {
-				loadedImage := raylib.LoadImage(newCanvasBackgroundImage)
-				{
-					raylib.ImageFlipHorizontal(loadedImage)
-					raylib.ImageRotate(loadedImage, 180)
-				}
+
+			if newCanvasImagePath != "" {
+				// For some reason Images are flipped horizontally and rotated 180 degrees, so we need to undo that...
+				loadedImage := raylib.LoadImage(newCanvasImagePath)
+				raylib.ImageFlipHorizontal(loadedImage)
+				raylib.ImageRotate(loadedImage, 180)
 
 				canvasBackground = raylib.LoadTextureFromImage(loadedImage)
 
 				newCanvasWidth = int(loadedImage.Width)
 				newCanvasHeight = int(loadedImage.Height)
 			} else {
-				canvasBackground = NewBackground(raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), newCanvasBackgroundColor)
+				canvasBackground = NewBackground(raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), newCanvasColor)
 			}
 
-			canvas = NewCanvas(newProjectName, raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), raylib.NewVector2(15, 15), canvasBackground)
+			canvas = NewCanvas(newCanvasName, raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), raylib.NewVector2(15, 15), canvasBackground)
 
-			createNewCanvas = false
-			newProjectName = "NewProject"
-			newCanvasWidth = 700
-			newCanvasHeight = 530
-			newCanvasBackgroundColor = raylib.White
-			newCanvasBackgroundImage = ""
+			shouldCreateNewCanvas = false
+			newCanvasName = defaultProjectName
+			newCanvasWidth = defaultProjectWidth
+			newCanvasHeight = defaultProjectHeight
+			newCanvasColor = raylib.White
+			newCanvasImagePath = ""
 		}
 
 		// INPUT
@@ -161,39 +159,39 @@ func main() {
 				AddToast("This is a test toast")
 			}
 			if raylib.IsKeyPressed(raylib.KeyF8) {
-				showDebugStats = !showDebugStats
+				applicationShowDebugValues = !applicationShowDebugValues
 			}
 			if raylib.IsKeyPressed(raylib.KeyF12) {
 				AddToast("Screenshot saved!")
 			}
 
-			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && state == StateNormal {
-				if !raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) &&
+			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && applicationState == StateNormal {
+				if !raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(applicationWindowWidth-int32(toolPanelWidth)), 0, toolPanelWidth, float32(applicationWindowHeight))) &&
 					raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
-					state = StateDrawing
-					currentStroke = penTool{
-						Size:  brushSize,
-						Color: colourPickerVal,
+					applicationState = StateDrawing
+					newPenStroke = penTool{
+						Size:  toolPanelBrushSize,
+						Color: toolPanelColourPicker,
 					}
 				}
 			}
 
-			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && state == StateDrawing {
-				var safeZone float32 = 1
+			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && applicationState == StateDrawing {
+				distanceToLastPoint := raylib.Vector2Distance(newPenStroke.Points[len(newPenStroke.Points)-1], raylib.GetMousePosition())
 
-				if len(currentStroke.Points) <= 1 {
-					currentStroke.Points = append(currentStroke.Points, raylib.GetMousePosition())
-				} else if raylib.Vector2Distance(currentStroke.Points[len(currentStroke.Points)-1], raylib.GetMousePosition()) > safeZone {
-					currentStroke.Points = append(currentStroke.Points, raylib.GetMousePosition())
+				if distanceToLastPoint > float32(newPenStrokeSafeZone) {
+					newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
+				} else if len(newPenStroke.Points) <= newPenStrokeSafeZone {
+					newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
 				}
 
-				state = StateDrawing
+				applicationState = StateDrawing
 			}
 
-			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && currentStroke.Points != nil {
-				canvas.AddStroke(currentStroke.Render())
-				currentStroke = penTool{}
-				state = StateNormal
+			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && newPenStroke.Points != nil {
+				canvas.AddStroke(newPenStroke.Render())
+				newPenStroke = penTool{}
+				applicationState = StateNormal
 			}
 
 			if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyDown(raylib.KeyLeftShift) && raylib.IsKeyPressed(raylib.KeyZ) {
@@ -209,16 +207,10 @@ func main() {
 		{
 			UpdateToasts()
 			canvas.Update()
-			if state != StateNormal {
+			if applicationState != StateNormal {
 				gui.Lock()
 			} else {
 				gui.Unlock()
-			}
-
-			if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) {
-				showCursor = false
-			} else {
-				showCursor = true
 			}
 		}
 
@@ -226,82 +218,78 @@ func main() {
 		raylib.BeginDrawing()
 		{
 			raylib.ClearBackground(raylib.White)
-			gui.Grid(raylib.NewRectangle(0, 0, float32(WindowWidth), float32(WindowHeight)), "", 30, 1, &raylib.Vector2{})
+			gui.Grid(raylib.NewRectangle(0, 0, float32(applicationWindowWidth), float32(applicationWindowHeight)), "", 30, 1, &raylib.Vector2{})
 
 			// Canvas stuff
-			raylib.BeginMode2D(camera)
 			{
 				raylib.DrawRectangle(int32(canvas.Offset.X)+10, int32(canvas.Offset.Y)+10, int32(canvas.Size.X), int32(canvas.Size.Y), raylib.Fade(raylib.Black, 0.3))
 				canvas.Draw()
 
 				raylib.BeginScissorMode(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y))
-				currentStroke.Draw()
+				newPenStroke.Draw()
 				raylib.EndScissorMode()
 
 				raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.DarkGray)
 			}
-			raylib.EndMode2D()
 
 			// UI stuff
-			raylib.BeginScissorMode(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight)
+			raylib.BeginScissorMode(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight)
 			{
-				raylib.DrawRectangle(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Fade(raylib.White, 0.9))
+				raylib.DrawRectangle(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight, raylib.Fade(raylib.White, 0.9))
 
-				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+10), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_OPEN, "")) {
-					state = StateFileMenu
+				if gui.Button(raylib.NewRectangle(float32(toolPanelOffset+10), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_OPEN, "")) {
+					applicationState = StateFileMenu
 				}
-				if gui.Button(raylib.NewRectangle(float32(sidePanelRelativeX+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
+				if gui.Button(raylib.NewRectangle(float32(toolPanelOffset+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
 					canvas.Save()
 				}
 
-				if gui.Button(raylib.NewRectangle(float32(WindowWidth-70), 10, 25, 25), gui.IconText(gui.ICON_UNDO, "")) {
+				if gui.Button(raylib.NewRectangle(float32(applicationWindowWidth-70), 10, 25, 25), gui.IconText(gui.ICON_UNDO, "")) {
 					canvas.Undo()
 				}
-				if gui.Button(raylib.NewRectangle(float32(WindowWidth-35), 10, 25, 25), gui.IconText(gui.ICON_REDO, "")) {
+				if gui.Button(raylib.NewRectangle(float32(applicationWindowWidth-35), 10, 25, 25), gui.IconText(gui.ICON_REDO, "")) {
 					canvas.Redo()
 				}
 
-				colourPickerVal = gui.ColorPicker(raylib.NewRectangle(float32(sidePanelRelativeX+10), 45, sidePanelWidth-45, colourPickerHeight), "Color", colourPickerVal)
+				toolPanelColourPicker = gui.ColorPicker(raylib.NewRectangle(float32(toolPanelOffset+10), 45, toolPanelWidth-45, toolPanelColourPickerHeight), "Color", toolPanelColourPicker)
 
-				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 55+colourPickerHeight, 60, 20), "Brush Size")
-				brushSize = gui.Slider(raylib.NewRectangle(float32(sidePanelRelativeX+80), 55+colourPickerHeight, sidePanelWidth-90, 20), "", "", brushSize, 1, 100)
+				gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 55+toolPanelColourPickerHeight, 60, 20), "Brush Size")
+				toolPanelBrushSize = gui.Slider(raylib.NewRectangle(float32(toolPanelOffset+80), 55+toolPanelColourPickerHeight, toolPanelWidth-90, 20), "", "", toolPanelBrushSize, 1, 100)
 
-				gui.Label(raylib.NewRectangle(float32(sidePanelRelativeX+10), 115+colourPickerHeight, 60, 20), "File Name")
-				if gui.TextBox(raylib.NewRectangle(float32(sidePanelRelativeX+80), 115+colourPickerHeight, sidePanelWidth-90, 20), &canvas.Name, 40, fileNameEditing) {
-					fileNameEditing = !fileNameEditing
+				gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 115+toolPanelColourPickerHeight, 60, 20), "File Name")
+				if gui.TextBox(raylib.NewRectangle(float32(toolPanelOffset+80), 115+toolPanelColourPickerHeight, toolPanelWidth-90, 20), &canvas.Name, 40, isEditingCanvasName) {
+					isEditingCanvasName = !isEditingCanvasName
 				}
-				raylib.DrawRectangleLines(sidePanelRelativeX, 0, int32(sidePanelWidth), WindowHeight, raylib.Gray)
+				raylib.DrawRectangleLines(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight, raylib.Gray)
 			}
 			raylib.EndScissorMode()
 
 			// Info
-			if showDebugStats {
+			if applicationShowDebugValues {
 				var text string
 
-				text = fmt.Sprintf("Strokes: %d | Points: %d", len(canvas.Strokes), len(currentStroke.Points))
-				gui.StatusBar(raylib.NewRectangle(0, float32(WindowHeight-20), 150, 20), text)
+				text = fmt.Sprintf("Strokes: %d | Points: %d", len(canvas.Strokes), len(newPenStroke.Points))
+				gui.StatusBar(raylib.NewRectangle(0, float32(applicationWindowHeight-20), 150, 20), text)
 
 				text = fmt.Sprintf("Canvas Size: %dx%d", int32(canvas.Size.X), int32(canvas.Size.Y))
-				gui.StatusBar(raylib.NewRectangle(150, float32(WindowHeight-20), 150, 20), text)
+				gui.StatusBar(raylib.NewRectangle(150, float32(applicationWindowHeight-20), 150, 20), text)
 
 				text = fmt.Sprintf("FPS: %d | DT: %f", raylib.GetFPS(), raylib.GetFrameTime())
-				gui.StatusBar(raylib.NewRectangle(300, float32(WindowHeight-20), 170, 20), text)
+				gui.StatusBar(raylib.NewRectangle(300, float32(applicationWindowHeight-20), 170, 20), text)
 			}
 
 			// Cursor
-			if showCursor {
-			}
-			raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), brushSize/2, raylib.Black)
+			raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, raylib.Black)
 
-			switch state {
+			switch applicationState {
 			case StateFileMenu:
-				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-200), 400, 400)
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-200), 400, 400)
 
-				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
+				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
 
 				gui.Unlock()
 				if gui.WindowBox(windowPos, "Open or New File") {
-					state = StateNormal
+					applicationState = StateNormal
 				}
 
 				// Magic numbers
@@ -312,15 +300,15 @@ func main() {
 					var err error
 
 					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+44, 100, 20), "File Name")
-					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+44, windowPos.Width-152, 20), &newProjectName, 40, newProjectNameEditing) {
-						newProjectNameEditing = !newProjectNameEditing
+					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+44, windowPos.Width-152, 20), &newCanvasName, 40, isEditingNewCanvasName) {
+						isEditingNewCanvasName = !isEditingNewCanvasName
 					}
 
 					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+74, 100, 20), "Canvas Width")
 					lastWidth := newCanvasWidth
 					width := fmt.Sprintf("%d", newCanvasWidth)
-					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+74, windowPos.Width-152, 20), &width, 6, newCanvasWidthEditing) {
-						newCanvasWidthEditing = !newCanvasWidthEditing
+					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+74, windowPos.Width-152, 20), &width, 6, isEditingNewCanvasWidth) {
+						isEditingNewCanvasWidth = !isEditingNewCanvasWidth
 					}
 					if newCanvasWidth, err = strconv.Atoi(width); err != nil {
 						newCanvasWidth = lastWidth
@@ -329,8 +317,8 @@ func main() {
 					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+104, 100, 20), "Canvas Height")
 					lastHeight := newCanvasHeight
 					height := fmt.Sprintf("%d", newCanvasHeight)
-					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+104, windowPos.Width-152, 20), &height, 6, newCanvasHeightEditing) {
-						newCanvasHeightEditing = !newCanvasHeightEditing
+					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+104, windowPos.Width-152, 20), &height, 6, isEditingNewCanvasHeight) {
+						isEditingNewCanvasHeight = !isEditingNewCanvasHeight
 					}
 					if newCanvasHeight, err = strconv.Atoi(height); err != nil {
 						newCanvasHeight = lastHeight
@@ -342,10 +330,10 @@ func main() {
 						posY := windowPos.Y + 149
 
 						if gui.Button(raylib.NewRectangle(posX, posY, 26, 26), "") {
-							newCanvasBackgroundColor = colors[i]
+							newCanvasColor = colors[i]
 						}
 
-						if newCanvasBackgroundColor == colors[i] {
+						if newCanvasColor == colors[i] {
 							raylib.DrawRectangle(int32(posX)-4, int32(posY)-4, 26+8, 26+8, raylib.Fade(raylib.Black, 0.2))
 							raylib.DrawRectangle(int32(posX), int32(posY), 26, 26, colors[i])
 						} else {
@@ -355,43 +343,43 @@ func main() {
 					}
 
 					if gui.Button(raylib.NewRectangle(windowPos.X+windowPos.Width-140, windowPos.Y+204, 120, 20), "Create") {
-						state = StateNewCanvas
+						applicationState = StateNewCanvas
 					}
 				}
 
 				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+244, windowPos.Width-22, float32(len(userDataProjects)*20)+10), "Open Existing")
 				{
 					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+254, windowPos.Width-42, 20), "Maned Wolf") {
-						newCanvasBackgroundImage = DirAssets + "manedWolf.jpg"
-						newProjectName = "ManedWolf"
-						state = StateNewCanvas
+						newCanvasImagePath = DirAssets + "manedWolf.jpg"
+						newCanvasName = "ManedWolf"
+						applicationState = StateNewCanvas
 					}
 
 					for i := 0; i < len(userDataProjects); i++ {
 						if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+274+float32(i*20), windowPos.Width-42, 20), userDataProjects[i]) {
-							newCanvasBackgroundImage = DirUserData + userDataProjects[i]
+							newCanvasImagePath = DirUserData + userDataProjects[i]
 							splitName := strings.Split(userDataProjects[i], ".")
-							newProjectName = splitName[:len(splitName)-1][0]
-							state = StateNewCanvas
+							newCanvasName = splitName[:len(splitName)-1][0]
+							applicationState = StateNewCanvas
 						}
 					}
 				}
 
 				raylib.EndScissorMode()
 			case StateNewCanvas:
-				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-75), 400, 150)
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)
 
-				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
+				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
 
 				gui.Unlock()
 				choice := gui.MessageBox(windowPos, "New Canvas", "Are you sure you want to create a new canvas?", "No;Yes")
 
 				if choice == 0 || choice == 1 {
-					state = StateNormal
-					createNewCanvas = false
+					applicationState = StateNormal
+					shouldCreateNewCanvas = false
 				} else if choice == 2 {
-					state = StateNormal
-					createNewCanvas = true
+					applicationState = StateNormal
+					shouldCreateNewCanvas = true
 					AddToast("Created New Canvas: " + canvas.Name)
 				}
 			default:

@@ -42,10 +42,9 @@ func UpdateToasts() {
 }
 
 func DrawToasts() {
-	raylib.BeginScissorMode(0, 0, WindowWidth, int32(toastHeight))
-	raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
+	raylib.BeginScissorMode(0, 0, applicationWindowWidth, int32(toastHeight))
+	raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
 	for i := 0; i < len(toasts); i++ {
-		// text := fmt.Sprintf("%s (%s)", toasts[i].Text, time.Since(toasts[i].Age).Round(time.Second))
 		text := toasts[i].Text
 		raylib.DrawText(text, 10, int32(20*i)+10, 10, raylib.White)
 	}
