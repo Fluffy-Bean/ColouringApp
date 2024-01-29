@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	raylib "github.com/gen2brain/raylib-go/raylib"
@@ -19,7 +20,8 @@ type Canvas struct {
 	Strokes       []raylib.Texture2D
 	UndoneStrokes []raylib.Texture2D
 
-	Refresh bool
+	UnsavedChanges bool
+	Refresh        bool
 }
 
 func (c *Canvas) Update() {
@@ -49,6 +51,7 @@ func (c *Canvas) Update() {
 		}
 		raylib.EndTextureMode()
 
+		c.UnsavedChanges = true
 		c.Refresh = false
 	}
 }
@@ -108,10 +111,12 @@ func (c *Canvas) Save() {
 		raylib.ImageRotate(image, 180)
 		raylib.ImageFlipHorizontal(image)
 
-		raylib.ExportImage(*image, dirUserData+c.Name+".png")
+		raylib.ExportImage(*image, filepath.Join(dirUserData, c.Name+".png"))
 
 		AddToast("Drawing saved as " + c.Name + ".png")
 	}
+
+	c.UnsavedChanges = false
 }
 
 func NewCanvas(name string, size, offset raylib.Vector2, background raylib.Texture2D) *Canvas {

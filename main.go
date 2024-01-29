@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -10,75 +11,13 @@ import (
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
-const (
-	applicationTitle           = "Colouring App"
-	applicationMinWindowWidth  = int32(800)
-	applicationMinWindowHeight = int32(600)
-
-	defaultProjectName   = "NewProject"
-	defaultProjectWidth  = 700
-	defaultProjectHeight = 530
-
-	dirAssets   = "./assets/"
-	dirUserData = "./userData/"
-)
-
-const (
-	StateNormal = iota
-	StateDrawing
-	StateFileMenu
-	StateNewCanvas
-)
-
-var (
-	applicationState           = StateNormal
-	applicationShouldQuit      = false
-	applicationShowDebugValues = false
-	applicationWindowWidth     = applicationMinWindowWidth
-	applicationWindowHeight    = applicationMinWindowHeight
-)
-
-var (
-	newPenStroke         = penTool{}
-	newPenStrokeSafeZone = 1
-
-	toolPanelWidth  = float32(350)
-	toolPanelOffset = applicationWindowWidth - int32(toolPanelWidth)
-
-	toolPanelColourPicker       = raylib.Orange
-	toolPanelColourPickerHeight = float32(250)
-
-	toolPanelBrushSize = float32(10)
-
-	isEditingCanvasName = false
-)
-
-var (
-	canvas *Canvas
-
-	shouldCreateNewCanvas = true
-
-	newCanvasName          = defaultProjectName
-	isEditingNewCanvasName = false
-
-	newCanvasWidth          = defaultProjectWidth
-	isEditingNewCanvasWidth = false
-
-	newCanvasHeight          = defaultProjectHeight
-	isEditingNewCanvasHeight = false
-
-	newCanvasColor     = raylib.White
-	newCanvasImagePath = ""
-)
-
 func main() {
+	// Initialize raylib
 	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
-
 	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
-
-	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight))
-	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor()))) // Set our application to run at the refresh rate of the monitor
-	raylib.SetExitKey(0)                                                                 // disable exit key
+	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight)) // Set a minimum window size
+	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))     // Match monitor refresh rate
+	raylib.SetExitKey(raylib.KeyNull)                                                        // disable exit key
 
 	// Make sure both assets and userData directories exist
 	if _, err := os.Stat(dirAssets); os.IsNotExist(err) {
@@ -103,7 +42,13 @@ func main() {
 	// LOOP
 	for !applicationShouldQuit {
 		// Update default loop values
-		applicationShouldQuit = raylib.WindowShouldClose()
+		if raylib.WindowShouldClose() {
+			if canvas.UnsavedChanges {
+				applicationState = StateWindowWantsToDie
+			} else {
+				applicationShouldQuit = true
+			}
+		}
 		if raylib.IsWindowResized() {
 			applicationWindowWidth = int32(raylib.GetScreenWidth())
 			applicationWindowHeight = int32(raylib.GetScreenHeight())
@@ -240,7 +185,7 @@ func main() {
 				if gui.TextBox(raylib.NewRectangle(float32(toolPanelOffset+80), 115+toolPanelColourPickerHeight, toolPanelWidth-90, 20), &canvas.Name, 40, isEditingCanvasName) {
 					isEditingCanvasName = !isEditingCanvasName
 				}
-				raylib.DrawRectangleLines(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight, raylib.Gray)
+				raylib.DrawLine(toolPanelOffset, 0, toolPanelOffset, applicationWindowHeight, raylib.Black)
 			}
 			raylib.EndScissorMode()
 
@@ -273,7 +218,6 @@ func main() {
 
 				// Magic numbers
 				raylib.BeginScissorMode(int32(windowPos.X)+1, int32(windowPos.Y)+24, int32(windowPos.Width)-2, int32(windowPos.Height)-25)
-
 				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+34, windowPos.Width-22, 200), "Create New")
 				{
 					var err error
@@ -284,8 +228,8 @@ func main() {
 					}
 
 					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+74, 100, 20), "Canvas Width")
-					lastWidth := newCanvasWidth
 					width := fmt.Sprintf("%d", newCanvasWidth)
+					lastWidth := newCanvasWidth
 					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+74, windowPos.Width-152, 20), &width, 6, isEditingNewCanvasWidth) {
 						isEditingNewCanvasWidth = !isEditingNewCanvasWidth
 					}
@@ -294,8 +238,8 @@ func main() {
 					}
 
 					gui.Label(raylib.NewRectangle(windowPos.X+21, windowPos.Y+104, 100, 20), "Canvas Height")
-					lastHeight := newCanvasHeight
 					height := fmt.Sprintf("%d", newCanvasHeight)
+					lastHeight := newCanvasHeight
 					if gui.TextBox(raylib.NewRectangle(windowPos.X+131, windowPos.Y+104, windowPos.Width-152, 20), &height, 6, isEditingNewCanvasHeight) {
 						isEditingNewCanvasHeight = !isEditingNewCanvasHeight
 					}
@@ -329,16 +273,16 @@ func main() {
 				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+244, windowPos.Width-22, float32(len(userDataProjects)*20)+10), "Open Existing")
 				{
 					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+254, windowPos.Width-42, 20), "Maned Wolf") {
-						newCanvasImagePath = dirAssets + "manedWolf.jpg"
+						newCanvasImagePath = filepath.Join(dirAssets, "manedWolf.jpg")
 						newCanvasName = "ManedWolf"
 						applicationState = StateNewCanvas
 					}
 
 					for i := 0; i < len(userDataProjects); i++ {
 						if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+274+float32(i*20), windowPos.Width-42, 20), userDataProjects[i]) {
-							newCanvasImagePath = dirUserData + userDataProjects[i]
+							newCanvasImagePath = filepath.Join(dirAssets, userDataProjects[i])
 							splitName := strings.Split(userDataProjects[i], ".")
-							newCanvasName = splitName[:len(splitName)-1][0]
+							newCanvasName = filepath.Base(splitName[0])
 							applicationState = StateNewCanvas
 						}
 					}
@@ -346,6 +290,13 @@ func main() {
 
 				raylib.EndScissorMode()
 			case StateNewCanvas:
+				if !canvas.UnsavedChanges {
+					applicationState = StateNormal
+					shouldCreateNewCanvas = true
+					AddToast("Created New Canvas: " + canvas.Name)
+					break
+				}
+
 				gui.Unlock()
 				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
 				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)
@@ -358,6 +309,17 @@ func main() {
 					applicationState = StateNormal
 					shouldCreateNewCanvas = true
 					AddToast("Created New Canvas: " + canvas.Name)
+				}
+			case StateWindowWantsToDie:
+				gui.Unlock()
+				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)
+				choice := gui.MessageBox(windowPos, "Unsaved Changes", "You have unsaved changes, are you sure you want to exit?", "No;Yes")
+
+				if choice == 0 || choice == 1 {
+					applicationState = StateNormal
+				} else if choice == 2 {
+					applicationShouldQuit = true
 				}
 			default:
 			}
