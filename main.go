@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	gui "github.com/gen2brain/raylib-go/raygui"
 	raylib "github.com/gen2brain/raylib-go/raylib"
@@ -29,6 +30,7 @@ const (
 	StateNormal = iota
 	StateDrawing
 	StateFileMenu
+	StateNewCanvas
 )
 
 var canvas *Canvas
@@ -48,13 +50,13 @@ func main() {
 	checkDirs() // Make sure all the directories exist
 
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
-	//raylib.SetConfigFlags(raylib.FlagWindowHighdpi)
-	// raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
+	raylib.SetConfigFlags(raylib.FlagWindowHighdpi)
+	raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
 	raylib.SetWindowMinSize(int(WindowMinWidth), int(WindowMinHeight))
 	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
-	// raylib.SetExitKey(0) // disable exit key
+	raylib.SetExitKey(0) // disable exit key
 
 	// Augh
 	var (
@@ -93,6 +95,7 @@ func main() {
 		newCanvasHeightEditing = false
 
 		newCanvasBackgroundColor = raylib.White
+		newCanvasBackgroundImage = ""
 	)
 
 	var userDataProjects []string
@@ -126,9 +129,30 @@ func main() {
 
 		// CREATE CANVAS
 		if createNewCanvas {
-			canvasBackground := NewBackground(raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), newCanvasBackgroundColor)
-			canvas = NewCanvas("NewProject", raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), raylib.NewVector2(15, 15), canvasBackground)
+			var canvasBackground raylib.Texture2D
+			if newCanvasBackgroundImage != "" {
+				loadedImage := raylib.LoadImage(newCanvasBackgroundImage)
+				{
+					raylib.ImageFlipHorizontal(loadedImage)
+					raylib.ImageRotate(loadedImage, 180)
+				}
+
+				canvasBackground = raylib.LoadTextureFromImage(loadedImage)
+
+				newCanvasWidth = int(loadedImage.Width)
+				newCanvasHeight = int(loadedImage.Height)
+			} else {
+				canvasBackground = NewBackground(raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), newCanvasBackgroundColor)
+			}
+
+			canvas = NewCanvas(newProjectName, raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), raylib.NewVector2(15, 15), canvasBackground)
+
 			createNewCanvas = false
+			newProjectName = "NewProject"
+			newCanvasWidth = 700
+			newCanvasHeight = 530
+			newCanvasBackgroundColor = raylib.White
+			newCanvasBackgroundImage = ""
 		}
 
 		// INPUT
@@ -138,6 +162,9 @@ func main() {
 			}
 			if raylib.IsKeyPressed(raylib.KeyF8) {
 				showDebugStats = !showDebugStats
+			}
+			if raylib.IsKeyPressed(raylib.KeyF12) {
+				AddToast("Screenshot saved!")
 			}
 
 			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && state == StateNormal {
@@ -183,9 +210,9 @@ func main() {
 			UpdateToasts()
 			canvas.Update()
 			if state != StateNormal {
-				gui.SetState(gui.STATE_DISABLED)
+				gui.Lock()
 			} else {
-				gui.SetState(gui.STATE_NORMAL)
+				gui.Unlock()
 			}
 
 			if raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(WindowWidth-int32(sidePanelWidth)), 0, sidePanelWidth, float32(WindowHeight))) {
@@ -268,10 +295,11 @@ func main() {
 
 			switch state {
 			case StateFileMenu:
-				gui.SetState(gui.STATE_NORMAL)
+				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-200), 400, 400)
+
 				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
 
-				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-200), 400, 400)
+				gui.Unlock()
 				if gui.WindowBox(windowPos, "Open or New File") {
 					state = StateNormal
 				}
@@ -327,47 +355,45 @@ func main() {
 					}
 
 					if gui.Button(raylib.NewRectangle(windowPos.X+windowPos.Width-140, windowPos.Y+204, 120, 20), "Create") {
-						state = StateNormal
-						createNewCanvas = true
-						AddToast("Created New Canvas")
+						state = StateNewCanvas
 					}
 				}
 
 				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+244, windowPos.Width-22, float32(len(userDataProjects)*20)+10), "Open Existing")
 				{
 					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+254, windowPos.Width-42, 20), "Maned Wolf") {
-						loadedImage := raylib.LoadImage(DirAssets + "manedWolf.jpg")
-						{
-							raylib.ImageFlipHorizontal(loadedImage)
-							raylib.ImageRotate(loadedImage, 180)
-						}
-						canvas = NewCanvas("NewProject", raylib.NewVector2(float32(loadedImage.Width), float32(loadedImage.Height)), raylib.NewVector2(15, 15), raylib.LoadTextureFromImage(loadedImage))
-
-						raylib.UnloadImage(loadedImage)
-						state = StateNormal
-
-						AddToast("Loaded Maned Wolf")
+						newCanvasBackgroundImage = DirAssets + "manedWolf.jpg"
+						newProjectName = "ManedWolf"
+						state = StateNewCanvas
 					}
 
 					for i := 0; i < len(userDataProjects); i++ {
 						if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+274+float32(i*20), windowPos.Width-42, 20), userDataProjects[i]) {
-							loadedImage := raylib.LoadImage(DirUserData + userDataProjects[i])
-							{
-								raylib.ImageFlipHorizontal(loadedImage)
-								raylib.ImageRotate(loadedImage, 180)
-							}
-							canvas = NewCanvas("NewProject", raylib.NewVector2(float32(loadedImage.Width), float32(loadedImage.Height)), raylib.NewVector2(15, 15), raylib.LoadTextureFromImage(loadedImage))
-
-							raylib.UnloadImage(loadedImage)
-							state = StateNormal
-
-							AddToast("Loaded " + userDataProjects[i])
+							newCanvasBackgroundImage = DirUserData + userDataProjects[i]
+							splitName := strings.Split(userDataProjects[i], ".")
+							newProjectName = splitName[:len(splitName)-1][0]
+							state = StateNewCanvas
 						}
 					}
 				}
 
 				raylib.EndScissorMode()
+			case StateNewCanvas:
+				windowPos := raylib.NewRectangle(float32((WindowWidth/2)-200), float32((WindowHeight/2)-75), 400, 150)
 
+				raylib.DrawRectangle(0, 0, WindowWidth, WindowHeight, raylib.Fade(raylib.Black, 0.5))
+
+				gui.Unlock()
+				choice := gui.MessageBox(windowPos, "New Canvas", "Are you sure you want to create a new canvas?", "No;Yes")
+
+				if choice == 0 || choice == 1 {
+					state = StateNormal
+					createNewCanvas = false
+				} else if choice == 2 {
+					state = StateNormal
+					createNewCanvas = true
+					AddToast("Created New Canvas: " + canvas.Name)
+				}
 			default:
 			}
 

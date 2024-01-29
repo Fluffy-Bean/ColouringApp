@@ -12,3 +12,7 @@ userData
 ColouringApp
 ColouringApp.exe
 ColouringApp.zip
+
+# Screenshots
+# saved as screenshot0000.png, screenshot0001.png, etc.
+screenshot*.png
