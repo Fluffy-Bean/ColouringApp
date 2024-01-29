@@ -48,7 +48,7 @@ func main() {
 	checkDirs() // Make sure all the directories exist
 
 	raylib.SetConfigFlags(raylib.FlagWindowResizable)
-	//raylib.SetConfigFlags(raylib.FlagWindowHighdpi)
+	// raylib.SetConfigFlags(raylib.FlagWindowHighdpi)
 	// raylib.SetConfigFlags(raylib.FlagMsaa4xHint)
 
 	raylib.InitWindow(WindowWidth, WindowHeight, WindowTitle)
