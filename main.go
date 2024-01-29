@@ -43,11 +43,7 @@ func main() {
 	for !applicationShouldQuit {
 		// Update default loop values
 		if raylib.WindowShouldClose() {
-			if canvas.UnsavedChanges {
-				applicationState = StateWindowWantsToDie
-			} else {
-				applicationShouldQuit = true
-			}
+			applicationState = StateWindowWantsToDie
 		}
 		if raylib.IsWindowResized() {
 			applicationWindowWidth = int32(raylib.GetScreenWidth())
@@ -287,7 +283,6 @@ func main() {
 						}
 					}
 				}
-
 				raylib.EndScissorMode()
 			case StateNewCanvas:
 				if !canvas.UnsavedChanges {
@@ -311,6 +306,16 @@ func main() {
 					AddToast("Created New Canvas: " + canvas.Name)
 				}
 			case StateWindowWantsToDie:
+				if !canvas.UnsavedChanges {
+					applicationShouldQuit = true
+					break
+				}
+				if !canvas.UnsavedChanges {
+					applicationState = StateNormal
+					shouldCreateNewCanvas = true
+					AddToast("Created New Canvas: " + canvas.Name)
+					break
+				}
 				gui.Unlock()
 				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
 				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)

@@ -121,14 +121,15 @@ func (c *Canvas) Save() {
 
 func NewCanvas(name string, size, offset raylib.Vector2, background raylib.Texture2D) *Canvas {
 	return &Canvas{
-		Name:          name,
-		Size:          size,
-		Offset:        offset,
-		Target:        raylib.LoadRenderTexture(int32(size.X), int32(size.Y)),
-		Background:    background,
-		Strokes:       []raylib.Texture2D{},
-		UndoneStrokes: []raylib.Texture2D{},
-		Refresh:       true,
+		Name:           name,
+		Size:           size,
+		Offset:         offset,
+		Target:         raylib.LoadRenderTexture(int32(size.X), int32(size.Y)),
+		Background:     background,
+		Strokes:        []raylib.Texture2D{},
+		UndoneStrokes:  []raylib.Texture2D{},
+		UnsavedChanges: false,
+		Refresh:        true,
 	}
 }
 
