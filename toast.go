@@ -1,40 +1,36 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
-const (
-	toastMaxAge = 1 * time.Second
-)
-
-var (
-	toasts      = []toast{}
-	toastHeight = float32(0)
-)
-
 type toast struct {
-	Text string
-	Age  time.Time
+	Text   string
+	Age    time.Time
+	MaxAge time.Duration
 }
 
+var (
+	toasts         = []toast{}
+	toastDimHeight = float32(0)
+)
+
 func AddToast(text string) {
-	toasts = append(toasts, toast{Text: text, Age: time.Now()})
-	fmt.Printf("Added toast: '%s'\n", text)
+	t := toast{Text: text, Age: time.Now(), MaxAge: 1 * time.Second}
+	toasts = append(toasts, t)
 }
 
 func UpdateToasts() {
 	if len(toasts) != 0 {
-		toastHeight = raylib.Lerp(toastHeight, float32(20*len(toasts))+10, 0.1)
+		toastDimHeight = raylib.Lerp(toastDimHeight, float32(20*len(toasts))+10, 0.1)
 	} else {
-		toastHeight = raylib.Lerp(toastHeight, 0, 0.1)
+		toastDimHeight = raylib.Lerp(toastDimHeight, 0, 0.1)
 	}
 
-	for i := 0; i < len(toasts); i += 1 {
-		if time.Since(toasts[i].Age) > toastMaxAge {
+	for i, t := range toasts {
+		if time.Since(t.Age) > t.MaxAge {
 			toasts = append(toasts[:i], toasts[i+1:]...)
 			i -= 1
 		}
@@ -42,11 +38,12 @@ func UpdateToasts() {
 }
 
 func DrawToasts() {
-	raylib.BeginScissorMode(0, 0, applicationWindowWidth, int32(toastHeight))
-	raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
-	for i := 0; i < len(toasts); i++ {
-		text := toasts[i].Text
-		raylib.DrawText(text, 10, int32(20*i)+10, 10, raylib.White)
+	raylib.BeginScissorMode(0, 0, applicationWindowWidth, int32(toastDimHeight))
+	{
+		raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
+		for i, t := range toasts {
+			raylib.DrawText(t.Text, 10, int32(20*i)+10, 10, raylib.White)
+		}
 	}
 	raylib.EndScissorMode()
 }

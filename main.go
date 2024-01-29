@@ -18,11 +18,9 @@ const (
 	defaultProjectName   = "NewProject"
 	defaultProjectWidth  = 700
 	defaultProjectHeight = 530
-)
 
-const (
-	DirAssets   = "./assets/"
-	DirUserData = "./userData/"
+	dirAssets   = "./assets/"
+	dirUserData = "./userData/"
 )
 
 const (
@@ -79,38 +77,24 @@ func main() {
 	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
 
 	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight))
-	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
-	raylib.SetExitKey(0) // disable exit key
+	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor()))) // Set our application to run at the refresh rate of the monitor
+	raylib.SetExitKey(0)                                                                 // disable exit key
 
-	if _, err := os.Stat(DirAssets); os.IsNotExist(err) {
+	// Make sure both assets and userData directories exist
+	if _, err := os.Stat(dirAssets); os.IsNotExist(err) {
 		panic("Assets directory not found")
 	}
-	if _, err := os.Stat(DirUserData); os.IsNotExist(err) {
-		if err := os.Mkdir(DirUserData, 0755); err != nil {
+	if _, err := os.Stat(dirUserData); os.IsNotExist(err) {
+		if err := os.Mkdir(dirUserData, 0755); err != nil {
 			panic("Could not create userData directory")
 		}
 	}
 
+	// Load all user data projects
 	var userDataProjects []string
-	{
-		f, err := os.Open(DirUserData)
-		if err != nil {
-			panic(err)
-		}
-		defer func() {
-			err := f.Close()
-			if err != nil {
-				panic(err)
-			}
-		}()
-
-		files, err := f.Readdir(-1)
-		if err != nil {
-			panic(err)
-		}
-
+	if files, err := os.ReadDir(dirUserData); err == nil {
 		for _, file := range files {
-			if file.Mode().IsRegular() {
+			if strings.HasSuffix(file.Name(), ".png") {
 				userDataProjects = append(userDataProjects, file.Name())
 			}
 		}
@@ -118,6 +102,7 @@ func main() {
 
 	// LOOP
 	for !applicationShouldQuit {
+		// Update default loop values
 		applicationShouldQuit = raylib.WindowShouldClose()
 		if raylib.IsWindowResized() {
 			applicationWindowWidth = int32(raylib.GetScreenWidth())
@@ -125,26 +110,21 @@ func main() {
 			toolPanelOffset = applicationWindowWidth - int32(toolPanelWidth)
 		}
 
-		// CREATE CANVAS
+		// Create new canvas if needed
 		if shouldCreateNewCanvas {
 			var canvasBackground raylib.Texture2D
 
 			if newCanvasImagePath != "" {
-				// For some reason Images are flipped horizontally and rotated 180 degrees, so we need to undo that...
-				loadedImage := raylib.LoadImage(newCanvasImagePath)
-				raylib.ImageFlipHorizontal(loadedImage)
-				raylib.ImageRotate(loadedImage, 180)
-
-				canvasBackground = raylib.LoadTextureFromImage(loadedImage)
-
-				newCanvasWidth = int(loadedImage.Width)
-				newCanvasHeight = int(loadedImage.Height)
+				canvasBackground = NewBackgroundImage(newCanvasImagePath)
+				newCanvasWidth = int(canvasBackground.Width)
+				newCanvasHeight = int(canvasBackground.Height)
 			} else {
-				canvasBackground = NewBackground(raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), newCanvasColor)
+				canvasBackground = NewBackgroundColour(raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), newCanvasColor)
 			}
 
 			canvas = NewCanvas(newCanvasName, raylib.NewVector2(float32(newCanvasWidth), float32(newCanvasHeight)), raylib.NewVector2(15, 15), canvasBackground)
 
+			// Reset all values
 			shouldCreateNewCanvas = false
 			newCanvasName = defaultProjectName
 			newCanvasWidth = defaultProjectWidth
@@ -177,11 +157,9 @@ func main() {
 			}
 
 			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && applicationState == StateDrawing {
-				distanceToLastPoint := raylib.Vector2Distance(newPenStroke.Points[len(newPenStroke.Points)-1], raylib.GetMousePosition())
-
-				if distanceToLastPoint > float32(newPenStrokeSafeZone) {
+				if len(newPenStroke.Points) <= 1 {
 					newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
-				} else if len(newPenStroke.Points) <= newPenStrokeSafeZone {
+				} else if raylib.Vector2Distance(newPenStroke.Points[len(newPenStroke.Points)-1], raylib.GetMousePosition()) > float32(newPenStrokeSafeZone) {
 					newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
 				}
 
@@ -205,13 +183,15 @@ func main() {
 
 		// UPDATE
 		{
-			UpdateToasts()
 			canvas.Update()
+
 			if applicationState != StateNormal {
 				gui.Lock()
 			} else {
 				gui.Unlock()
 			}
+
+			UpdateToasts()
 		}
 
 		// DRAW
@@ -220,7 +200,7 @@ func main() {
 			raylib.ClearBackground(raylib.White)
 			gui.Grid(raylib.NewRectangle(0, 0, float32(applicationWindowWidth), float32(applicationWindowHeight)), "", 30, 1, &raylib.Vector2{})
 
-			// Canvas stuff
+			// Canvas
 			{
 				raylib.DrawRectangle(int32(canvas.Offset.X)+10, int32(canvas.Offset.Y)+10, int32(canvas.Size.X), int32(canvas.Size.Y), raylib.Fade(raylib.Black, 0.3))
 				canvas.Draw()
@@ -232,7 +212,7 @@ func main() {
 				raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.DarkGray)
 			}
 
-			// UI stuff
+			// Tool Panel
 			raylib.BeginScissorMode(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight)
 			{
 				raylib.DrawRectangle(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight, raylib.Fade(raylib.White, 0.9))
@@ -264,7 +244,7 @@ func main() {
 			}
 			raylib.EndScissorMode()
 
-			// Info
+			// Debug Values
 			if applicationShowDebugValues {
 				var text string
 
@@ -281,13 +261,12 @@ func main() {
 			// Cursor
 			raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, raylib.Black)
 
+			// Menus
 			switch applicationState {
 			case StateFileMenu:
-				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-200), 400, 400)
-
-				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
-
 				gui.Unlock()
+				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-200), 400, 400)
 				if gui.WindowBox(windowPos, "Open or New File") {
 					applicationState = StateNormal
 				}
@@ -350,14 +329,14 @@ func main() {
 				gui.GroupBox(raylib.NewRectangle(windowPos.X+11, windowPos.Y+244, windowPos.Width-22, float32(len(userDataProjects)*20)+10), "Open Existing")
 				{
 					if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+254, windowPos.Width-42, 20), "Maned Wolf") {
-						newCanvasImagePath = DirAssets + "manedWolf.jpg"
+						newCanvasImagePath = dirAssets + "manedWolf.jpg"
 						newCanvasName = "ManedWolf"
 						applicationState = StateNewCanvas
 					}
 
 					for i := 0; i < len(userDataProjects); i++ {
 						if gui.Button(raylib.NewRectangle(windowPos.X+21, windowPos.Y+274+float32(i*20), windowPos.Width-42, 20), userDataProjects[i]) {
-							newCanvasImagePath = DirUserData + userDataProjects[i]
+							newCanvasImagePath = dirUserData + userDataProjects[i]
 							splitName := strings.Split(userDataProjects[i], ".")
 							newCanvasName = splitName[:len(splitName)-1][0]
 							applicationState = StateNewCanvas
@@ -367,11 +346,9 @@ func main() {
 
 				raylib.EndScissorMode()
 			case StateNewCanvas:
-				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)
-
-				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
-
 				gui.Unlock()
+				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)
 				choice := gui.MessageBox(windowPos, "New Canvas", "Are you sure you want to create a new canvas?", "No;Yes")
 
 				if choice == 0 || choice == 1 {

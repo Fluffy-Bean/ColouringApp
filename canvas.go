@@ -108,7 +108,7 @@ func (c *Canvas) Save() {
 		raylib.ImageRotate(image, 180)
 		raylib.ImageFlipHorizontal(image)
 
-		raylib.ExportImage(*image, DirUserData+c.Name+".png")
+		raylib.ExportImage(*image, dirUserData+c.Name+".png")
 
 		AddToast("Drawing saved as " + c.Name + ".png")
 	}
@@ -127,7 +127,7 @@ func NewCanvas(name string, size, offset raylib.Vector2, background raylib.Textu
 	}
 }
 
-func NewBackground(size raylib.Vector2, color raylib.Color) raylib.Texture2D {
+func NewBackgroundColour(size raylib.Vector2, color raylib.Color) raylib.Texture2D {
 	texture := raylib.LoadRenderTexture(int32(size.X), int32(size.Y))
 
 	fmt.Println(size)
@@ -137,4 +137,14 @@ func NewBackground(size raylib.Vector2, color raylib.Color) raylib.Texture2D {
 	raylib.EndTextureMode()
 
 	return texture.Texture
+}
+
+func NewBackgroundImage(pathToImage string) raylib.Texture2D {
+	loadedImage := raylib.LoadImage(pathToImage)
+
+	// For some reason Images are flipped horizontally and rotated 180 degrees, so we need to undo that...
+	raylib.ImageFlipHorizontal(loadedImage)
+	raylib.ImageRotate(loadedImage, 180)
+
+	return raylib.LoadTextureFromImage(loadedImage)
 }
