@@ -14,6 +14,7 @@ import (
 func main() {
 	// Initialize raylib
 	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
+	//raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagMsaa4xHint)
 	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
 	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight)) // Set a minimum window size
 	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))     // Match monitor refresh rate
