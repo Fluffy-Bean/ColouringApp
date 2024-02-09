@@ -131,7 +131,6 @@ func (c *Canvas) Save(force bool) {
 		addToast("Drawing saved as " + c.Name + ".png")
 	} else {
 		applicationState = StateFileExists
-
 	}
 
 	c.UnsavedChanges = false
