@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -100,12 +102,16 @@ func (c *Canvas) Draw() {
 	)
 }
 
-func (c *Canvas) Save() {
+func (c *Canvas) Save(force bool) {
 	c.Name = strings.Trim(c.Name, " ")
 
+	// check if the name is empty
 	if c.Name == "" {
 		addToast("Please enter a file name!")
-	} else {
+		return
+	}
+	// check if file already exists, sorry for lazy
+	if _, err := os.Stat(filepath.Join(dirUserData, c.Name+".png")); errors.Is(err, os.ErrNotExist) {
 		image := raylib.LoadImageFromTexture(c.Target.Texture)
 
 		raylib.ImageRotate(image, 180)
@@ -114,6 +120,18 @@ func (c *Canvas) Save() {
 		raylib.ExportImage(*image, filepath.Join(dirUserData, c.Name+".png"))
 
 		addToast("Drawing saved as " + c.Name + ".png")
+	} else if force {
+		image := raylib.LoadImageFromTexture(c.Target.Texture)
+
+		raylib.ImageRotate(image, 180)
+		raylib.ImageFlipHorizontal(image)
+
+		raylib.ExportImage(*image, filepath.Join(dirUserData, c.Name+".png"))
+
+		addToast("Drawing saved as " + c.Name + ".png")
+	} else {
+		applicationState = StateFileExists
+
 	}
 
 	c.UnsavedChanges = false

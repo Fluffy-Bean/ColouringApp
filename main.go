@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,8 +13,7 @@ import (
 
 func main() {
 	// Initialize raylib
-	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
-	// raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagMsaa4xHint)
+	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagMsaa4xHint) // raylib.FlagWindowHighdpi
 	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
 	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight)) // Set a minimum window size
 	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))     // Match monitor refresh rate
@@ -48,11 +46,11 @@ func main() {
 		if raylib.WindowShouldClose() {
 			applicationState = StateWindowWantsToDie
 		}
-		if raylib.IsWindowResized() {
-			applicationWindowWidth = int32(raylib.GetScreenWidth())
-			applicationWindowHeight = int32(raylib.GetScreenHeight())
-			toolPanelOffset = applicationWindowWidth - int32(toolPanelWidth)
-		}
+
+		applicationWindowWidth = int32(raylib.GetScreenWidth())
+		applicationWindowHeight = int32(raylib.GetScreenHeight())
+		toolBarOffset = applicationWindowWidth - toolBarWidth
+		toolPanelOffset = applicationWindowWidth - toolPanelWidth - toolBarWidth
 
 		// Create new canvas if needed
 		if shouldCreateNewCanvas {
@@ -81,7 +79,7 @@ func main() {
 		{
 			if applicationState == StateNormal {
 				if raylib.IsKeyPressed(raylib.KeyF1) {
-					newStrokeType = toolNone
+					newStrokeType = toolPointer
 					addToast("Tool: None")
 				}
 				if raylib.IsKeyPressed(raylib.KeyF2) {
@@ -103,7 +101,7 @@ func main() {
 			switch newStrokeType {
 			case toolPen:
 				if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && applicationState == StateNormal {
-					if !raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(applicationWindowWidth-int32(toolPanelWidth)), 0, toolPanelWidth, float32(applicationWindowHeight))) &&
+					if (!raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(toolPanelOffset), 0, float32(toolPanelWidth+toolBarWidth), float32(applicationWindowHeight))) || !toolBarShowPanel) &&
 						raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
 						applicationState = StateDrawing
 						newPenStroke = penTool{
@@ -119,8 +117,6 @@ func main() {
 					} else if raylib.Vector2Distance(newPenStroke.Points[len(newPenStroke.Points)-1], raylib.GetMousePosition()) > float32(newStrokeSafeZone) {
 						newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
 					}
-
-					applicationState = StateDrawing
 				}
 
 				if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && newPenStroke.Points != nil {
@@ -128,7 +124,7 @@ func main() {
 					newPenStroke = penTool{}
 					applicationState = StateNormal
 				}
-			case toolNone:
+			case toolPointer:
 				fallthrough
 			default:
 				// yyeeeeet
@@ -139,16 +135,13 @@ func main() {
 			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyZ) {
 				canvas.Undo()
 			} else if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyPressed(raylib.KeyS) {
-				canvas.Save()
+				canvas.Save(false)
 			}
 		}
 
 		// UPDATE
 		{
 			applicationRuntime += 1
-			if math.Mod(float64(applicationRuntime), 1) == 0 {
-				// ToDo: check cursor color contrast with background
-			}
 
 			if applicationState != StateNormal {
 				gui.Lock()
@@ -179,36 +172,76 @@ func main() {
 			}
 
 			// Tool Panel
-			raylib.BeginScissorMode(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight)
+			raylib.BeginScissorMode(toolBarOffset, 0, toolBarWidth, applicationWindowHeight)
 			{
-				raylib.DrawRectangle(toolPanelOffset, 0, int32(toolPanelWidth), applicationWindowHeight, raylib.Fade(raylib.White, 0.9))
+				raylib.DrawRectangle(toolBarOffset, 0, toolBarWidth, applicationWindowHeight, raylib.Fade(raylib.White, 0.9))
 
-				if gui.Button(raylib.NewRectangle(float32(toolPanelOffset+10), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_OPEN, "")) {
-					applicationState = StateFileMenu
-				}
-				if gui.Button(raylib.NewRectangle(float32(toolPanelOffset+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
-					canvas.Save()
-				}
+				// Top
 
-				if gui.Button(raylib.NewRectangle(float32(applicationWindowWidth-70), 10, 25, 25), gui.IconText(gui.ICON_UNDO, "")) {
-					canvas.Undo()
-				}
-				if gui.Button(raylib.NewRectangle(float32(applicationWindowWidth-35), 10, 25, 25), gui.IconText(gui.ICON_REDO, "")) {
-					canvas.Redo()
+				if gui.Button(raylib.NewRectangle(float32(toolBarOffset+10), 10, 25, 25), gui.IconText(gui.ICON_BURGER_MENU, "")) {
+					toolBarShowPanel = !toolBarShowPanel
 				}
 
-				toolPanelColourPicker = gui.ColorPicker(raylib.NewRectangle(float32(toolPanelOffset+10), 45, toolPanelWidth-45, toolPanelColourPickerHeight), "Color", toolPanelColourPicker)
-
-				gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 55+toolPanelColourPickerHeight, 60, 20), "Brush Size")
-				toolPanelBrushSize = gui.Slider(raylib.NewRectangle(float32(toolPanelOffset+80), 55+toolPanelColourPickerHeight, toolPanelWidth-90, 20), "", "", toolPanelBrushSize, 1, 100)
-
-				gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 115+toolPanelColourPickerHeight, 60, 20), "File Name")
-				if gui.TextBox(raylib.NewRectangle(float32(toolPanelOffset+80), 115+toolPanelColourPickerHeight, toolPanelWidth-90, 20), &canvas.Name, 40, isEditingCanvasName) {
-					isEditingCanvasName = !isEditingCanvasName
+				if newStrokeType == toolPointer {
+					gui.SetState(gui.STATE_PRESSED)
 				}
-				raylib.DrawLine(toolPanelOffset, 0, toolPanelOffset, applicationWindowHeight, raylib.Black)
+				if gui.Button(raylib.NewRectangle(float32(toolBarOffset+10), 45, 25, 25), gui.IconText(gui.ICON_CURSOR_CLASSIC, "")) {
+					newStrokeType = toolPointer
+					addToast("Tool: Pointer")
+				}
+				gui.SetState(gui.STATE_NORMAL)
+
+				if newStrokeType == toolPen {
+					gui.SetState(gui.STATE_PRESSED)
+				}
+				if gui.Button(raylib.NewRectangle(float32(toolBarOffset+10), 80, 25, 25), gui.IconText(gui.ICON_PENCIL, "")) {
+					newStrokeType = toolPen
+					addToast("Tool: Pen")
+				}
+				gui.SetState(gui.STATE_NORMAL)
+
+				// Bottom
+				if gui.Button(raylib.NewRectangle(float32(toolBarOffset+10), float32(applicationWindowHeight-35), 25, 25), gui.IconText(gui.ICON_INFO, "")) {
+					applicationState = StateHelp
+				}
+
+				raylib.DrawLine(toolBarOffset, 0, toolBarOffset, applicationWindowHeight, raylib.Black)
 			}
 			raylib.EndScissorMode()
+
+			// Tool Panel
+			if toolBarShowPanel {
+				raylib.BeginScissorMode(toolPanelOffset, 0, toolPanelWidth, applicationWindowHeight)
+				{
+					raylib.DrawRectangle(toolPanelOffset, 0, toolPanelWidth, applicationWindowHeight, raylib.Fade(raylib.White, 0.9))
+
+					if gui.Button(raylib.NewRectangle(float32(toolPanelOffset+10), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_OPEN, "")) {
+						applicationState = StateFileMenu
+					}
+					if gui.Button(raylib.NewRectangle(float32(toolPanelOffset+20+25), 10, 25, 25), gui.IconText(gui.ICON_FOLDER_SAVE, "")) {
+						canvas.Save(false)
+					}
+
+					if gui.Button(raylib.NewRectangle(float32(applicationWindowWidth-70-toolBarWidth), 10, 25, 25), gui.IconText(gui.ICON_UNDO, "")) {
+						canvas.Undo()
+					}
+					if gui.Button(raylib.NewRectangle(float32(applicationWindowWidth-35-toolBarWidth), 10, 25, 25), gui.IconText(gui.ICON_REDO, "")) {
+						canvas.Redo()
+					}
+
+					toolPanelColourPicker = gui.ColorPicker(raylib.NewRectangle(float32(toolPanelOffset+10), 45, float32(toolPanelWidth-45), toolPanelColourPickerHeight), "Color", toolPanelColourPicker)
+
+					gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 55+toolPanelColourPickerHeight, 60, 20), "Brush Size")
+					toolPanelBrushSize = gui.Slider(raylib.NewRectangle(float32(toolPanelOffset+80), 55+toolPanelColourPickerHeight, float32(toolPanelWidth-90), 20), "", "", toolPanelBrushSize, 1, 100)
+
+					gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 115+toolPanelColourPickerHeight, 60, 20), "File Name")
+					if gui.TextBox(raylib.NewRectangle(float32(toolPanelOffset+80), 115+toolPanelColourPickerHeight, float32(toolPanelWidth-90), 20), &canvas.Name, 40, isEditingCanvasName) {
+						isEditingCanvasName = !isEditingCanvasName
+					}
+					raylib.DrawLine(toolPanelOffset, 0, toolPanelOffset, applicationWindowHeight, raylib.Black)
+				}
+				raylib.EndScissorMode()
+			}
 
 			// Debug Values
 			if applicationShowDebugValues {
@@ -327,6 +360,27 @@ func main() {
 					shouldCreateNewCanvas = true
 					addToast("Created New Canvas: " + canvas.Name)
 				}
+			case StateHelp:
+				gui.Unlock()
+				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)
+				choice := gui.MessageBox(windowPos, "Help", fmt.Sprintf("ColouringApp %s", Version), "Close")
+
+				if choice == 0 || choice == 1 {
+					applicationState = StateNormal
+				}
+			case StateFileExists:
+				gui.Unlock()
+				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-75), 400, 150)
+				choice := gui.MessageBox(windowPos, "File Exists", "File already exists, are you sure you want to save?", "No;Yes")
+
+				if choice == 0 || choice == 1 {
+					applicationState = StateNormal
+				} else if choice == 2 {
+					canvas.Save(true)
+					applicationState = StateNormal
+				}
 			case StateWindowWantsToDie:
 				if !canvas.UnsavedChanges {
 					applicationShouldQuit = true
@@ -352,16 +406,26 @@ func main() {
 			}
 
 			// Cursor
-			switch newStrokeType {
-			case toolNone:
-				raylib.DrawTriangleLines(
-					raylib.NewVector2(raylib.GetMousePosition().X, raylib.GetMousePosition().Y),
-					raylib.NewVector2(raylib.GetMousePosition().X+10, raylib.GetMousePosition().Y+10),
-					raylib.NewVector2(raylib.GetMousePosition().X, raylib.GetMousePosition().Y+14),
-					cursorColor,
-				)
-			case toolPen:
-				raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, cursorColor)
+			if raylib.IsCursorOnScreen() {
+				switch newStrokeType {
+				case toolPointer:
+					// Points have to be provided in counter-clockwise order for some reason ??!?!??!?!?
+					raylib.DrawTriangle(
+						raylib.NewVector2(raylib.GetMousePosition().X+2, raylib.GetMousePosition().Y+14),
+						raylib.NewVector2(raylib.GetMousePosition().X+10, raylib.GetMousePosition().Y+10),
+						raylib.NewVector2(raylib.GetMousePosition().X, raylib.GetMousePosition().Y),
+						raylib.White,
+					)
+					// Here they don't!
+					raylib.DrawTriangleLines(
+						raylib.NewVector2(raylib.GetMousePosition().X, raylib.GetMousePosition().Y),
+						raylib.NewVector2(raylib.GetMousePosition().X+10, raylib.GetMousePosition().Y+10),
+						raylib.NewVector2(raylib.GetMousePosition().X+2, raylib.GetMousePosition().Y+14),
+						raylib.Black,
+					)
+				case toolPen:
+					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, raylib.Black)
+				}
 			}
 
 			drawToasts()

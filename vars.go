@@ -2,6 +2,8 @@ package main
 
 import raylib "github.com/gen2brain/raylib-go/raylib"
 
+const Version = "0.1.0"
+
 const (
 	applicationTitle           = "Colouring App"
 	applicationMinWindowWidth  = int32(800)
@@ -20,11 +22,13 @@ const (
 	StateDrawing
 	StateFileMenu
 	StateNewCanvas
+	StateHelp
+	StateFileExists
 	StateWindowWantsToDie
 )
 
 const (
-	toolNone = iota
+	toolPointer = iota
 	toolPen
 )
 
@@ -38,14 +42,20 @@ var (
 )
 
 var (
-	cursorColor = raylib.Black
-
-	newStrokeType     = toolNone
+	newStrokeType     = toolPen
 	newPenStroke      = penTool{}
 	newStrokeSafeZone = 1
+)
 
-	toolPanelWidth  = float32(350)
-	toolPanelOffset = applicationWindowWidth - int32(toolPanelWidth)
+var (
+	toolBarWidth     = int32(45)
+	toolBarOffset    = applicationWindowWidth - toolBarWidth
+	toolBarShowPanel = true
+)
+
+var (
+	toolPanelWidth  = int32(350)
+	toolPanelOffset = applicationWindowWidth - toolPanelWidth - toolBarWidth
 
 	toolPanelColourPicker       = raylib.Orange
 	toolPanelColourPickerHeight = float32(250)
