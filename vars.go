@@ -23,17 +23,26 @@ const (
 	StateWindowWantsToDie
 )
 
+const (
+	toolNone = iota
+	toolPen
+)
+
 var (
 	applicationState           = StateNormal
 	applicationShouldQuit      = false
 	applicationShowDebugValues = false
 	applicationWindowWidth     = applicationMinWindowWidth
 	applicationWindowHeight    = applicationMinWindowHeight
+	applicationRuntime         = float32(0)
 )
 
 var (
-	newPenStroke         = penTool{}
-	newPenStrokeSafeZone = 1
+	cursorColor = raylib.Black
+
+	newStrokeType     = toolNone
+	newPenStroke      = penTool{}
+	newStrokeSafeZone = 1
 
 	toolPanelWidth  = float32(350)
 	toolPanelOffset = applicationWindowWidth - int32(toolPanelWidth)

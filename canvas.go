@@ -75,7 +75,7 @@ func (c *Canvas) Undo() {
 		c.Strokes = c.Strokes[:len(c.Strokes)-1]
 		c.Refresh = true
 
-		AddToast("Undo")
+		addToast("Undo")
 	}
 }
 
@@ -85,7 +85,7 @@ func (c *Canvas) Redo() {
 		c.UndoneStrokes = c.UndoneStrokes[:len(c.UndoneStrokes)-1]
 		c.Refresh = true
 
-		AddToast("Redo")
+		addToast("Redo")
 	}
 }
 
@@ -104,7 +104,7 @@ func (c *Canvas) Save() {
 	c.Name = strings.Trim(c.Name, " ")
 
 	if c.Name == "" {
-		AddToast("Please enter a file name!")
+		addToast("Please enter a file name!")
 	} else {
 		image := raylib.LoadImageFromTexture(c.Target.Texture)
 
@@ -113,7 +113,7 @@ func (c *Canvas) Save() {
 
 		raylib.ExportImage(*image, filepath.Join(dirUserData, c.Name+".png"))
 
-		AddToast("Drawing saved as " + c.Name + ".png")
+		addToast("Drawing saved as " + c.Name + ".png")
 	}
 
 	c.UnsavedChanges = false

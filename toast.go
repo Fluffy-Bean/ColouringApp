@@ -13,31 +13,32 @@ type toast struct {
 }
 
 var (
-	toasts         = []toast{}
+	toasts         []toast
 	toastDimHeight = float32(0)
 )
 
-func AddToast(text string) {
+func addToast(text string) {
 	t := toast{Text: text, Age: time.Now(), MaxAge: 1 * time.Second}
 	toasts = append(toasts, t)
 }
 
-func UpdateToasts() {
+func updateToasts() {
 	if len(toasts) != 0 {
 		toastDimHeight = raylib.Lerp(toastDimHeight, float32(20*len(toasts))+10, 0.1)
 	} else {
 		toastDimHeight = raylib.Lerp(toastDimHeight, 0, 0.1)
 	}
 
-	for i, t := range toasts {
-		if time.Since(t.Age) > t.MaxAge {
-			toasts = append(toasts[:i], toasts[i+1:]...)
-			i -= 1
+	var t []toast
+	for i := range toasts {
+		if time.Since(toasts[i].Age) < toasts[i].MaxAge {
+			t = append(t, toasts[i])
 		}
 	}
+	toasts = t
 }
 
-func DrawToasts() {
+func drawToasts() {
 	raylib.BeginScissorMode(0, 0, applicationWindowWidth, int32(toastDimHeight))
 	{
 		raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))

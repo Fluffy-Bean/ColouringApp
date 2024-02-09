@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,6 +20,7 @@ func main() {
 	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight)) // Set a minimum window size
 	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))     // Match monitor refresh rate
 	raylib.SetExitKey(raylib.KeyNull)                                                        // disable exit key
+	raylib.HideCursor()                                                                      // Hide cursor
 
 	// Make sure both assets and userData directories exist
 	if _, err := os.Stat(dirAssets); os.IsNotExist(err) {
@@ -77,41 +79,59 @@ func main() {
 
 		// INPUT
 		{
+			if applicationState == StateNormal {
+				if raylib.IsKeyPressed(raylib.KeyF1) {
+					newStrokeType = toolNone
+					addToast("Tool: None")
+				}
+				if raylib.IsKeyPressed(raylib.KeyF2) {
+					newStrokeType = toolPen
+					addToast("Tool: Pen")
+				}
+			}
+
 			if raylib.IsKeyPressed(raylib.KeyF7) {
-				AddToast("This is a test toast")
+				addToast("This is a test toast")
 			}
 			if raylib.IsKeyPressed(raylib.KeyF8) {
 				applicationShowDebugValues = !applicationShowDebugValues
 			}
 			if raylib.IsKeyPressed(raylib.KeyF12) {
-				AddToast("Screenshot saved!")
+				addToast("Screenshot saved!")
 			}
 
-			if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && applicationState == StateNormal {
-				if !raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(applicationWindowWidth-int32(toolPanelWidth)), 0, toolPanelWidth, float32(applicationWindowHeight))) &&
-					raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
-					applicationState = StateDrawing
-					newPenStroke = penTool{
-						Size:  toolPanelBrushSize,
-						Color: toolPanelColourPicker,
+			switch newStrokeType {
+			case toolPen:
+				if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && applicationState == StateNormal {
+					if !raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(applicationWindowWidth-int32(toolPanelWidth)), 0, toolPanelWidth, float32(applicationWindowHeight))) &&
+						raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
+						applicationState = StateDrawing
+						newPenStroke = penTool{
+							Size:  toolPanelBrushSize,
+							Color: toolPanelColourPicker,
+						}
 					}
 				}
-			}
 
-			if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && applicationState == StateDrawing {
-				if len(newPenStroke.Points) <= 1 {
-					newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
-				} else if raylib.Vector2Distance(newPenStroke.Points[len(newPenStroke.Points)-1], raylib.GetMousePosition()) > float32(newPenStrokeSafeZone) {
-					newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
+				if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && applicationState == StateDrawing {
+					if len(newPenStroke.Points) <= 1 {
+						newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
+					} else if raylib.Vector2Distance(newPenStroke.Points[len(newPenStroke.Points)-1], raylib.GetMousePosition()) > float32(newStrokeSafeZone) {
+						newPenStroke.Points = append(newPenStroke.Points, raylib.GetMousePosition())
+					}
+
+					applicationState = StateDrawing
 				}
 
-				applicationState = StateDrawing
-			}
-
-			if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && newPenStroke.Points != nil {
-				canvas.AddStroke(newPenStroke.Render())
-				newPenStroke = penTool{}
-				applicationState = StateNormal
+				if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && newPenStroke.Points != nil {
+					canvas.AddStroke(newPenStroke.Render())
+					newPenStroke = penTool{}
+					applicationState = StateNormal
+				}
+			case toolNone:
+				fallthrough
+			default:
+				// yyeeeeet
 			}
 
 			if raylib.IsKeyDown(raylib.KeyLeftControl) && raylib.IsKeyDown(raylib.KeyLeftShift) && raylib.IsKeyPressed(raylib.KeyZ) {
@@ -125,7 +145,10 @@ func main() {
 
 		// UPDATE
 		{
-			canvas.Update()
+			applicationRuntime += 1
+			if math.Mod(float64(applicationRuntime), 1) == 0 {
+				// ToDo: check cursor color contrast with background
+			}
 
 			if applicationState != StateNormal {
 				gui.Lock()
@@ -133,7 +156,8 @@ func main() {
 				gui.Unlock()
 			}
 
-			UpdateToasts()
+			canvas.Update()
+			updateToasts()
 		}
 
 		// DRAW
@@ -199,9 +223,6 @@ func main() {
 				text = fmt.Sprintf("FPS: %d | DT: %f", raylib.GetFPS(), raylib.GetFrameTime())
 				gui.StatusBar(raylib.NewRectangle(300, float32(applicationWindowHeight-20), 170, 20), text)
 			}
-
-			// Cursor
-			raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, raylib.Black)
 
 			// Menus
 			switch applicationState {
@@ -289,7 +310,7 @@ func main() {
 				if !canvas.UnsavedChanges {
 					applicationState = StateNormal
 					shouldCreateNewCanvas = true
-					AddToast("Created New Canvas: " + canvas.Name)
+					addToast("Created New Canvas: " + canvas.Name)
 					break
 				}
 
@@ -304,7 +325,7 @@ func main() {
 				} else if choice == 2 {
 					applicationState = StateNormal
 					shouldCreateNewCanvas = true
-					AddToast("Created New Canvas: " + canvas.Name)
+					addToast("Created New Canvas: " + canvas.Name)
 				}
 			case StateWindowWantsToDie:
 				if !canvas.UnsavedChanges {
@@ -314,7 +335,7 @@ func main() {
 				if !canvas.UnsavedChanges {
 					applicationState = StateNormal
 					shouldCreateNewCanvas = true
-					AddToast("Created New Canvas: " + canvas.Name)
+					addToast("Created New Canvas: " + canvas.Name)
 					break
 				}
 				gui.Unlock()
@@ -330,7 +351,20 @@ func main() {
 			default:
 			}
 
-			DrawToasts()
+			// Cursor
+			switch newStrokeType {
+			case toolNone:
+				raylib.DrawTriangleLines(
+					raylib.NewVector2(raylib.GetMousePosition().X, raylib.GetMousePosition().Y),
+					raylib.NewVector2(raylib.GetMousePosition().X+10, raylib.GetMousePosition().Y+10),
+					raylib.NewVector2(raylib.GetMousePosition().X, raylib.GetMousePosition().Y+14),
+					cursorColor,
+				)
+			case toolPen:
+				raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, cursorColor)
+			}
+
+			drawToasts()
 		}
 		raylib.EndDrawing()
 	}
