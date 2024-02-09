@@ -17,7 +17,7 @@ func main() {
 	raylib.SetConfigFlags(raylib.FlagWindowResizable) // | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
 	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
 	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight))
-	//raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
+	// raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
 	raylib.SetTargetFPS(60)
 	raylib.SetExitKey(raylib.KeyNull)
 	raylib.HideCursor()
