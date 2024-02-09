@@ -23,6 +23,7 @@ type Canvas struct {
 	UndoneStrokes []raylib.Texture2D
 
 	UnsavedChanges bool
+	EditingFile    bool
 	Refresh        bool
 }
 
@@ -110,30 +111,28 @@ func (c *Canvas) Save(force bool) {
 		addToast("Please enter a file name!")
 		return
 	}
-	// check if file already exists, sorry for lazy
-	if _, err := os.Stat(filepath.Join(dirUserData, c.Name+".png")); errors.Is(err, os.ErrNotExist) {
-		image := raylib.LoadImageFromTexture(c.Target.Texture)
-
-		raylib.ImageRotate(image, 180)
-		raylib.ImageFlipHorizontal(image)
-
-		raylib.ExportImage(*image, filepath.Join(dirUserData, c.Name+".png"))
-
-		addToast("Drawing saved as " + c.Name + ".png")
-	} else if force {
-		image := raylib.LoadImageFromTexture(c.Target.Texture)
-
-		raylib.ImageRotate(image, 180)
-		raylib.ImageFlipHorizontal(image)
-
-		raylib.ExportImage(*image, filepath.Join(dirUserData, c.Name+".png"))
-
-		addToast("Drawing saved as " + c.Name + ".png")
-	} else {
-		applicationState = StateFileExists
+	// check if file already exists
+	if !c.EditingFile {
+		_, err := os.Stat(filepath.Join(dirUserData, c.Name+".png"))
+		if !errors.Is(err, os.ErrNotExist) {
+			if !force {
+				applicationState = StateFileExists
+				return
+			}
+		}
 	}
 
+	image := raylib.LoadImageFromTexture(c.Target.Texture)
+
+	raylib.ImageRotate(image, 180)
+	raylib.ImageFlipHorizontal(image)
+
+	raylib.ExportImage(*image, filepath.Join(dirUserData, c.Name+".png"))
+
+	addToast("Drawing saved as " + c.Name + ".png")
+
 	c.UnsavedChanges = false
+	c.EditingFile = true
 }
 
 func NewCanvas(name string, size, offset raylib.Vector2, background raylib.Texture2D) *Canvas {
@@ -146,6 +145,7 @@ func NewCanvas(name string, size, offset raylib.Vector2, background raylib.Textu
 		Strokes:        []raylib.Texture2D{},
 		UndoneStrokes:  []raylib.Texture2D{},
 		UnsavedChanges: false,
+		EditingFile:    false,
 		Refresh:        true,
 	}
 }

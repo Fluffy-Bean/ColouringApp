@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,12 +14,13 @@ import (
 
 func main() {
 	// Initialize raylib
-	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagMsaa4xHint) // raylib.FlagWindowHighdpi
+	raylib.SetConfigFlags(raylib.FlagWindowResizable) // | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
 	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
-	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight)) // Set a minimum window size
-	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))     // Match monitor refresh rate
-	raylib.SetExitKey(raylib.KeyNull)                                                        // disable exit key
-	raylib.HideCursor()                                                                      // Hide cursor
+	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight))
+	//raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
+	raylib.SetTargetFPS(60)
+	raylib.SetExitKey(raylib.KeyNull)
+	raylib.HideCursor()
 
 	// Make sure both assets and userData directories exist
 	if _, err := os.Stat(dirAssets); os.IsNotExist(err) {
@@ -205,7 +207,7 @@ func main() {
 					applicationState = StateHelp
 				}
 
-				raylib.DrawLine(toolBarOffset, 0, toolBarOffset, applicationWindowHeight, raylib.Black)
+				raylib.DrawLine(toolBarOffset+1, 0, toolBarOffset+1, applicationWindowHeight, raylib.Black)
 			}
 			raylib.EndScissorMode()
 
@@ -231,14 +233,15 @@ func main() {
 
 					toolPanelColourPicker = gui.ColorPicker(raylib.NewRectangle(float32(toolPanelOffset+10), 45, float32(toolPanelWidth-45), toolPanelColourPickerHeight), "Color", toolPanelColourPicker)
 
-					gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 55+toolPanelColourPickerHeight, 60, 20), "Brush Size")
-					toolPanelBrushSize = gui.Slider(raylib.NewRectangle(float32(toolPanelOffset+80), 55+toolPanelColourPickerHeight, float32(toolPanelWidth-90), 20), "", "", toolPanelBrushSize, 1, 100)
+					gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 50+toolPanelColourPickerHeight, 60, 20), "Brush Size")
+					gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 60+toolPanelColourPickerHeight, 60, 20), fmt.Sprintf("%d", int(toolPanelBrushSize)))
+					toolPanelBrushSize = gui.Slider(raylib.NewRectangle(float32(toolPanelOffset+80), 55+toolPanelColourPickerHeight, float32(toolPanelWidth-90), 20), "", "", toolPanelBrushSize, 1, 150)
 
 					gui.Label(raylib.NewRectangle(float32(toolPanelOffset+10), 115+toolPanelColourPickerHeight, 60, 20), "File Name")
 					if gui.TextBox(raylib.NewRectangle(float32(toolPanelOffset+80), 115+toolPanelColourPickerHeight, float32(toolPanelWidth-90), 20), &canvas.Name, 40, isEditingCanvasName) {
 						isEditingCanvasName = !isEditingCanvasName
 					}
-					raylib.DrawLine(toolPanelOffset, 0, toolPanelOffset, applicationWindowHeight, raylib.Black)
+					raylib.DrawLine(toolPanelOffset+1, 0, toolPanelOffset+1, applicationWindowHeight, raylib.Black)
 				}
 				raylib.EndScissorMode()
 			}
@@ -262,7 +265,7 @@ func main() {
 			case StateFileMenu:
 				gui.Unlock()
 				raylib.DrawRectangle(0, 0, applicationWindowWidth, applicationWindowHeight, raylib.Fade(raylib.Black, 0.5))
-				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-200), 400, 400)
+				windowPos := raylib.NewRectangle(float32((applicationWindowWidth/2)-200), float32((applicationWindowHeight/2)-225), 450, 400)
 				if gui.WindowBox(windowPos, "Open or New File") {
 					applicationState = StateNormal
 				}
@@ -314,6 +317,12 @@ func main() {
 							raylib.DrawRectangle(int32(posX), int32(posY), 26, 26, colors[i])
 							raylib.DrawRectangleLines(int32(posX), int32(posY), 26, 26, raylib.Black)
 						}
+					}
+
+					if _, err := os.Stat(filepath.Join(dirUserData, newCanvasName+".png")); !errors.Is(err, os.ErrNotExist) {
+						warnText := fmt.Sprintf("%s already exists", newCanvasName+".png")
+						raylib.DrawRectangle(int32(windowPos.X+21), int32(windowPos.Y+204), raylib.MeasureText(warnText, 10)+20, 20, raylib.Fade(raylib.Red, 0.2))
+						raylib.DrawText(warnText, int32(windowPos.X+31), int32(windowPos.Y+204+5), 10, raylib.Red)
 					}
 
 					if gui.Button(raylib.NewRectangle(windowPos.X+windowPos.Width-140, windowPos.Y+204, 120, 20), "Create") {
@@ -425,6 +434,10 @@ func main() {
 					)
 				case toolPen:
 					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, raylib.Black)
+					if toolPanelBrushSize > 20 {
+						raylib.DrawCircle(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), 1, raylib.White)
+						raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), 2, raylib.Black)
+					}
 				}
 			}
 
