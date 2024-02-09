@@ -17,14 +17,14 @@ func (p *penTool) Render() raylib.Texture2D {
 	raylib.BeginTextureMode(texture)
 	raylib.ClearBackground(raylib.Fade(raylib.Black, 0))
 	for i := 0; i < len(p.Points)-1; i++ {
-		startPoint := raylib.Vector2Add(p.Points[i], offset)
-		endPoint := raylib.Vector2Add(p.Points[i+1], offset)
-		raylib.DrawLineEx(startPoint, endPoint, p.Size, p.Color)
-		raylib.DrawCircle(int32(startPoint.X), int32(startPoint.Y), p.Size/2, p.Color)
+		startPointOffset := raylib.Vector2Add(p.Points[i], offset)
+		endPointOffset := raylib.Vector2Add(p.Points[i+1], offset)
+		raylib.DrawLineEx(startPointOffset, endPointOffset, p.Size, p.Color)
+		raylib.DrawCircle(int32(startPointOffset.X), int32(startPointOffset.Y), p.Size/2, p.Color)
 	}
 	if len(p.Points) > 0 {
-		endPoint := raylib.Vector2Add(p.Points[len(p.Points)-1], offset)
-		raylib.DrawCircle(int32(endPoint.X), int32(endPoint.Y), p.Size/2, p.Color)
+		endPointOffset := raylib.Vector2Add(p.Points[len(p.Points)-1], offset)
+		raylib.DrawCircle(int32(endPointOffset.X), int32(endPointOffset.Y), p.Size/2, p.Color)
 	}
 	raylib.EndTextureMode()
 

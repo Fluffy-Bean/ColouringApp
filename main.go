@@ -126,6 +126,30 @@ func main() {
 					newPenStroke = penTool{}
 					applicationState = StateNormal
 				}
+			case toolRectangle:
+				if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) && applicationState == StateNormal {
+					if (!raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(float32(toolPanelOffset), 0, float32(toolPanelWidth+toolBarWidth), float32(applicationWindowHeight))) || !toolBarShowPanel) &&
+						raylib.CheckCollisionPointRec(raylib.GetMousePosition(), raylib.NewRectangle(10, 10, canvas.Size.X, canvas.Size.Y)) {
+						applicationState = StateDrawing
+						newRectangleStroke = rectangleTool{
+							StartPos: raylib.GetMousePosition(),
+							EndPos:   raylib.GetMousePosition(),
+							Rounded:  false,
+							Color:    toolPanelColourPicker,
+							Size:     toolPanelBrushSize,
+						}
+					}
+				}
+
+				if raylib.IsMouseButtonDown(raylib.MouseLeftButton) && applicationState == StateDrawing {
+					newRectangleStroke.EndPos = raylib.GetMousePosition()
+				}
+
+				if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) && applicationState == StateDrawing {
+					canvas.AddStroke(newRectangleStroke.Render())
+					newRectangleStroke = rectangleTool{}
+					applicationState = StateNormal
+				}
 			case toolPointer:
 				fallthrough
 			default:
@@ -167,13 +191,22 @@ func main() {
 				canvas.Draw()
 
 				raylib.BeginScissorMode(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y))
-				newPenStroke.Draw()
+				switch newStrokeType {
+				case toolPen:
+					newPenStroke.Draw()
+				case toolRectangle:
+					newRectangleStroke.Draw()
+				case toolPointer:
+					fallthrough
+				default:
+					// gwagwa
+				}
 				raylib.EndScissorMode()
 
 				raylib.DrawRectangleLines(int32(canvas.Offset.X), int32(canvas.Offset.Y), int32(canvas.Size.X), int32(canvas.Size.Y), raylib.DarkGray)
 			}
 
-			// Tool Panel
+			// Tool Bar
 			raylib.BeginScissorMode(toolBarOffset, 0, toolBarWidth, applicationWindowHeight)
 			{
 				raylib.DrawRectangle(toolBarOffset, 0, toolBarWidth, applicationWindowHeight, raylib.Fade(raylib.White, 0.9))
@@ -199,6 +232,15 @@ func main() {
 				if gui.Button(raylib.NewRectangle(float32(toolBarOffset+10), 80, 25, 25), gui.IconText(gui.ICON_PENCIL, "")) {
 					newStrokeType = toolPen
 					addToast("Tool: Pen")
+				}
+				gui.SetState(gui.STATE_NORMAL)
+
+				if newStrokeType == toolRectangle {
+					gui.SetState(gui.STATE_PRESSED)
+				}
+				if gui.Button(raylib.NewRectangle(float32(toolBarOffset+10), 115, 25, 25), gui.IconText(gui.ICON_PLAYER_STOP, "")) {
+					newStrokeType = toolRectangle
+					addToast("Tool: Rectangle")
 				}
 				gui.SetState(gui.STATE_NORMAL)
 
@@ -417,7 +459,24 @@ func main() {
 			// Cursor
 			if raylib.IsCursorOnScreen() {
 				switch newStrokeType {
+				case toolPen:
+					raylib.DrawCircleLines(
+						int32(raylib.GetMousePosition().X),
+						int32(raylib.GetMousePosition().Y),
+						toolPanelBrushSize/2,
+						raylib.Black,
+					)
+				case toolRectangle:
+					raylib.DrawRectangleLines(
+						int32(raylib.GetMousePosition().X-(toolPanelBrushSize/2)),
+						int32(raylib.GetMousePosition().Y-(toolPanelBrushSize/2)),
+						int32(toolPanelBrushSize),
+						int32(toolPanelBrushSize),
+						raylib.Black,
+					)
 				case toolPointer:
+					fallthrough
+				default:
 					// Points have to be provided in counter-clockwise order for some reason ??!?!??!?!?
 					raylib.DrawTriangle(
 						raylib.NewVector2(raylib.GetMousePosition().X+2, raylib.GetMousePosition().Y+14),
@@ -432,11 +491,14 @@ func main() {
 						raylib.NewVector2(raylib.GetMousePosition().X+2, raylib.GetMousePosition().Y+14),
 						raylib.Black,
 					)
-				case toolPen:
-					raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), toolPanelBrushSize/2, raylib.Black)
+				}
+
+				// Cursor point finder/guide
+				if newStrokeType != toolPointer {
 					if toolPanelBrushSize > 20 {
-						raylib.DrawCircle(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), 1, raylib.White)
-						raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), 2, raylib.Black)
+						raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), 3, raylib.Red)
+					} else if toolPanelBrushSize < 5 {
+						raylib.DrawCircleLines(int32(raylib.GetMousePosition().X), int32(raylib.GetMousePosition().Y), 10, raylib.Red)
 					}
 				}
 			}

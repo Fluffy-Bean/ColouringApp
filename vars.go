@@ -30,6 +30,7 @@ const (
 const (
 	toolPointer = iota
 	toolPen
+	toolRectangle
 )
 
 var (
@@ -42,9 +43,10 @@ var (
 )
 
 var (
-	newStrokeType     = toolPen
-	newPenStroke      = penTool{}
-	newStrokeSafeZone = 1
+	newStrokeType      = toolPen
+	newPenStroke       = penTool{}
+	newRectangleStroke = rectangleTool{}
+	newStrokeSafeZone  = 1
 )
 
 var (
