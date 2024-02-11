@@ -1,8 +1,9 @@
 package main
 
 import (
-	raylib "github.com/gen2brain/raylib-go/raylib"
 	"math"
+
+	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
 type rectangleTool struct {
