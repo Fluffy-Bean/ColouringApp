@@ -34,12 +34,18 @@ const (
 )
 
 var (
-	applicationState           = StateNormal
-	applicationShouldQuit      = false
-	applicationShowDebugValues = false
-	applicationWindowWidth     = applicationMinWindowWidth
-	applicationWindowHeight    = applicationMinWindowHeight
-	applicationRuntime         = float32(0)
+	applicationState        = StateNormal
+	applicationLastState    = StateNormal
+	applicationShouldQuit   = false
+	applicationShouldDraw   = true
+	applicationLastMousePos = raylib.Vector2{}
+	applicationWindowWidth  = applicationMinWindowWidth
+	applicationWindowHeight = applicationMinWindowHeight
+	applicationRuntime      = 0
+
+	applicationExperimentalUpdates = false
+	applicationShowDebugValues     = false
+	applicationShowdebugUpdate     = false
 )
 
 var (

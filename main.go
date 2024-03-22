@@ -14,13 +14,14 @@ import (
 
 func main() {
 	// Initialize raylib
-	raylib.SetConfigFlags(raylib.FlagWindowResizable) // | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
+	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagWindowHighdpi | raylib.FlagMsaa4xHint)
 	raylib.InitWindow(applicationWindowWidth, applicationWindowHeight, applicationTitle)
 	raylib.SetWindowMinSize(int(applicationMinWindowWidth), int(applicationMinWindowHeight))
-	// raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
-	raylib.SetTargetFPS(60)
+	raylib.SetTargetFPS(int32(raylib.GetMonitorRefreshRate(raylib.GetCurrentMonitor())))
 	raylib.SetExitKey(raylib.KeyNull)
 	raylib.HideCursor()
+
+	defer raylib.CloseWindow()
 
 	// Make sure both assets and userData directories exist
 	if _, err := os.Stat(dirAssets); os.IsNotExist(err) {
@@ -96,6 +97,10 @@ func main() {
 			if raylib.IsKeyPressed(raylib.KeyF8) {
 				applicationShowDebugValues = !applicationShowDebugValues
 			}
+			if raylib.IsKeyPressed(raylib.KeyF9) {
+				applicationExperimentalUpdates = !applicationExperimentalUpdates
+				addToast("Experimental Updates: " + strconv.FormatBool(applicationExperimentalUpdates))
+			}
 			if raylib.IsKeyPressed(raylib.KeyF12) {
 				addToast("Screenshot saved!")
 			}
@@ -134,7 +139,7 @@ func main() {
 						newRectangleStroke = rectangleTool{
 							StartPos: raylib.GetMousePosition(),
 							EndPos:   raylib.GetMousePosition(),
-							Rounded:  false,
+							Rounded:  true,
 							Color:    toolPanelColourPicker,
 							Size:     toolPanelBrushSize,
 						}
@@ -151,7 +156,6 @@ func main() {
 					applicationState = StateNormal
 				}
 			case toolPointer:
-				fallthrough
 			default:
 				// yyeeeeet
 			}
@@ -177,11 +181,56 @@ func main() {
 
 			canvas.Update()
 			updateToasts()
+
+			if !applicationExperimentalUpdates {
+				applicationShouldDraw = true
+			} else {
+				if applicationRuntime > 1 {
+					applicationShouldDraw = false
+				}
+				if raylib.IsWindowResized() {
+					applicationShouldDraw = true
+					fmt.Println("Updating render: Window Resized")
+				}
+				if applicationLastMousePos != raylib.GetMousePosition() {
+					applicationShouldDraw = true
+					applicationLastMousePos = raylib.GetMousePosition()
+					fmt.Println("Updating render: Mouse moved")
+				}
+				if toastShouldUpdate {
+					applicationShouldDraw = true
+					fmt.Println("Updating render: Toasts")
+				}
+				if applicationState != applicationLastState {
+					applicationShouldDraw = true
+					applicationLastState = applicationState
+					fmt.Println("Updating render: State")
+				}
+				if raylib.GetKeyPressed() != 0 {
+					applicationShouldDraw = true
+					fmt.Println("Updating render: GUI")
+				}
+				if raylib.IsMouseButtonDown(raylib.MouseLeftButton) || raylib.IsMouseButtonDown(raylib.MouseRightButton) {
+					applicationShouldDraw = true
+					fmt.Println("Updating render: Mouse Button")
+				}
+				if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) || raylib.IsMouseButtonReleased(raylib.MouseRightButton) {
+					applicationShouldDraw = true
+					fmt.Println("Updating render: Mouse Button Released")
+				}
+				if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) || raylib.IsMouseButtonPressed(raylib.MouseRightButton) {
+					applicationShouldDraw = true
+					fmt.Println("Updating render: Mouse Button Pressed")
+				}
+			}
+
 		}
 
 		// DRAW
+		// check if gui changes are needed
 		raylib.BeginDrawing()
-		{
+		if applicationShouldDraw {
+
 			raylib.ClearBackground(raylib.White)
 			gui.Grid(raylib.NewRectangle(0, 0, float32(applicationWindowWidth), float32(applicationWindowHeight)), "", 30, 1, &raylib.Vector2{})
 
@@ -504,10 +553,14 @@ func main() {
 			}
 
 			drawToasts()
+
+			if applicationShowDebugValues && applicationExperimentalUpdates {
+				if applicationShowdebugUpdate {
+					raylib.DrawRectangle(0, 0, 200, 20, raylib.Fade(raylib.Black, 0.5))
+				}
+				applicationShowdebugUpdate = !applicationShowdebugUpdate
+			}
 		}
 		raylib.EndDrawing()
 	}
-
-	// GOODBYE
-	raylib.CloseWindow()
 }

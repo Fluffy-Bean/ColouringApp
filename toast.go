@@ -13,8 +13,9 @@ type toast struct {
 }
 
 var (
-	toasts         []toast
-	toastDimHeight = float32(0)
+	toasts            []toast
+	toastShouldUpdate = true
+	toastDimHeight    = float32(0)
 )
 
 func addToast(text string) {
@@ -36,6 +37,8 @@ func updateToasts() {
 		}
 	}
 	toasts = t
+
+	toastShouldUpdate = int(toastDimHeight) != 0
 }
 
 func drawToasts() {
